@@ -173,7 +173,65 @@ local EN = {
 	["el texto no es un perfil de HemsworkPlates"] = "the text is not a HemsworkPlates profile",
 	["el perfil esta incompleto o danado (copialo entero)"] = "the profile is incomplete or damaged (copy all of it)",
 
+	-- Panel nuevo: secciones, bloques, notas y tooltips
+	["Aspecto"] = "Look",
+	["Castbar"] = "Castbar",
+	["Resaltado"] = "Highlight",
+	["Arena"] = "Arena",
+	["GCD"] = "GCD",
+	["Estilo"] = "Style",
+	["Tamano"] = "Size",
+	["Apilado"] = "Stacking",
+	["Interrupciones"] = "Interrupts",
+	["Colores del cast"] = "Castbar colors",
+	["Nombre y nivel"] = "Name and level",
+	["Texto de vida"] = "Health text",
+	["Color de clase"] = "Class colors",
+	["Reaccion"] = "Reaction",
+	["Barra"] = "Bar",
+	["Tu target"] = "Your target",
+	["Numeros de arena"] = "Arena numbers",
+	["Aliados"] = "Allies",
+	["Debuffs importantes"] = "Important debuffs",
+	["GCD de arena"] = "Arena GCDs",
+	["Restablecer"] = "Reset",
+	["Importar / exportar perfil"] = "Import / export profile",
+	["Exporta tu configuracion como un texto para copiarla a otro personaje o cuenta, o importa la de otra persona."] =
+		"Export your settings as text to copy them to another character or account, or import someone else's.",
+	["Vuelve todas las opciones a sus valores por defecto."] = "Sets every option back to its default value.",
+	["Las placas amistosas muestran solo el nombre, sin barra, en las zonas que elijas."] =
+		"Friendly plates show only the name, without a bar, in the zones you choose.",
+	["Ajusta tamanos y posiciones a pixeles exactos de tu pantalla para que los bordes se vean nitidos."] =
+		"Snaps sizes and positions to exact screen pixels so borders look crisp.",
+	["Solo en los estilos Cuadrada y Redonda."] = "Only for the Square and Round styles.",
+	["Opacidad de las placas que no son tu target (solo cuando tienes un target)."] =
+		"Opacity of plates that are not your target (only while you have a target).",
+	["Separa las placas que se solapan. El juego ya las separa por su cuenta; activalo solo si lo prefieres."] =
+		"Pushes overlapping plates apart. The game already spreads them; enable it only if you prefer it.",
+	["Cuanto tiempo se queda la barra parada en rojo al cortar un cast."] = "How long the bar stays frozen in red when a cast is interrupted.",
+	["Aplica el rojo de 'Interrupted' y el color de no interrumpible a los castbars de los marcos de target y focus."] =
+		"Applies the red 'Interrupted' and uninterruptible colors to the target and focus frame castbars.",
+	["Ruta de un archivo .ttf, por ejemplo Interface\\AddOns\\MiFuente\\fuente.ttf"] =
+		"Path to a .ttf file, for example Interface\\AddOns\\MyFont\\font.ttf",
+	["Con 0 el nombre queda en el centro exacto de la barra."] = "At 0 the name sits exactly centered over the bar.",
+	["Automatico: espanol si tu cliente esta en espanol, ingles en cualquier otro."] =
+		"Automatic: Spanish if your client is in Spanish, English for any other language.",
+	["Si la placa de tu target se sale por arriba de la pantalla, se queda pegada al borde superior."] =
+		"If your target's plate goes above the screen, it sticks to the top edge.",
+	["Muestra 1-5 en cada rival de arena (en rojo)."] = "Shows 1-5 on each arena opponent (in red).",
+	["Muestra el numero de cada companero de arena (en verde)."] = "Shows each arena teammate's number (in green).",
+	["Desmarcado: tus aliados salen en un color fijo (azul) para no confundirlos con los enemigos."] =
+		"Unchecked: your allies use a fixed color (blue) so they are never mixed up with enemies.",
+	["Muestra en cada placa enemiga el aura mas importante segun su categoria y prioridad."] =
+		"Shows the most important aura on each enemy plate, by category and priority.",
+	["Pummel, Shield Bash, Kick, etc. no dejan aura: se detectan en el registro de combate y se muestran como silencio."] =
+		"Pummel, Shield Bash, Kick, etc. leave no aura: they are detected from the combat log and shown as silences.",
+
 	-- Mensajes del chat
+	["|cff66ccffHemsworkPlates|r cargado: version %s (Warmane, sin Awesome WotLK)"] =
+		"|cff66ccffHemsworkPlates|r loaded: version %s (Warmane, no Awesome WotLK)",
+	["|cff66ccffHemsworkPlates:|r hay una version nueva (|cffffffff%s|r, tienes la %s). Descargala en |cffffffff%s|r"] =
+		"|cff66ccffHemsworkPlates:|r a new version is available (|cffffffff%s|r, you have %s). Download it at |cffffffff%s|r",
 	["|cff66ccffHemsworkPlates|r cargado: version 1.0.1 Warmane (sin Awesome WotLK)"] =
 		"|cff66ccffHemsworkPlates|r loaded: version 1.0.1 Warmane (no Awesome WotLK)",
 	["|cff66ccffHemsworkPlates|r cargado: version 1.0.1 (bloqueos de interrupcion)"] =

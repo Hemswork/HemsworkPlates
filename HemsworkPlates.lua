@@ -1748,7 +1748,7 @@ function OnEvent(self, event, arg1)
 		if SP.UpdateLanguage then SP.UpdateLanguage() end
 		self:UnregisterEvent("ADDON_LOADED")
 		-- Marca de version para comprobar que el juego cargo el archivo actual
-		DEFAULT_CHAT_FRAME:AddMessage(T("|cff66ccffHemsworkPlates|r cargado: version 1.0.1 Warmane (sin Awesome WotLK)"))
+		DEFAULT_CHAT_FRAME:AddMessage(string.format(T("|cff66ccffHemsworkPlates|r cargado: version %s (Warmane, sin Awesome WotLK)"), SP.VERSION or "?"))
 
 		-- Color de clase en las barras nativas de jugadores enemigos: sin token es
 		-- la unica forma de saber su clase

@@ -7,7 +7,7 @@
 ## English
 
 Arena-focused nameplates for **World of Warcraft 3.3.5a (WotLK)**, made for **Warmane** and any server that does not allow client patches.
-Classic Blizzard look, pixel-perfect bars, castbars for every arena opponent, important debuffs, arena GCDs and everything configurable in-game with `/hms`.
+Classic Blizzard look, pixel-perfect bars, castbars for every arena opponent, important debuffs, arena GCDs and everything configurable in-game with `/hms`, in a dark side-menu panel with tooltips.
 
 > ✅ **No Awesome WotLK and no client patches needed.**
 > Nameplates are found among the game's own frames and matched **by name** with `arena1-5`, `party1-4`, their pets, `target`, `focus` and `mouseover`. Inside arenas this gives full information for every opponent.
@@ -45,6 +45,7 @@ Classic Blizzard look, pixel-perfect bars, castbars for every arena opponent, im
 - Bigger target plate, smaller friendly plates, and the target plate kept inside the screen.
 - **Profiles**: export your settings as text and import them on another character or account.
 - **English and Spanish**: detected from your game client or chosen in `/hms` → Text → Language.
+- **Update notice**: if someone in your group, arena team, battleground or guild has a newer version, you get a chat message with the download link.
 - Compatible with WeakAuras auras that use `WeakAuras.GetUnitNameplate`.
 
 ### Limits (no Awesome WotLK)
@@ -81,7 +82,7 @@ Classic Blizzard look, pixel-perfect bars, castbars for every arena opponent, im
 ## Español
 
 Placas de nombre pensadas para arenas en **World of Warcraft 3.3.5a (WotLK)**, hechas para **Warmane** y cualquier servidor que no permita parches del cliente.
-Aspecto clásico de Blizzard, barras pixel-perfect, castbar de todos los rivales de arena, debuffs importantes, GCD de arena y todo configurable dentro del juego con `/hms`.
+Aspecto clásico de Blizzard, barras pixel-perfect, castbar de todos los rivales de arena, debuffs importantes, GCD de arena y todo configurable dentro del juego con `/hms`, en un panel oscuro con menú lateral y descripciones al pasar el ratón.
 
 > ✅ **No necesita Awesome WotLK ni parches del cliente.**
 > Las placas se buscan entre los marcos del propio juego y se emparejan **por nombre** con `arena1-5`, `party1-4`, sus mascotas, `target`, `focus` y `mouseover`. Dentro de la arena esto da información completa de cada rival.
@@ -119,6 +120,7 @@ Aspecto clásico de Blizzard, barras pixel-perfect, castbar de todos los rivales
 - Placa del target más grande, aliados más pequeños y la placa del target siempre dentro de la pantalla.
 - **Perfiles**: exporta tu configuración como texto e impórtala en otro personaje o cuenta.
 - **Español e inglés**: se detecta según el idioma de tu cliente o se elige en `/hms` → Texto → Idioma.
+- **Aviso de actualización**: si alguien de tu grupo, equipo de arena, campo de batalla o hermandad tiene una versión más nueva, te sale un mensaje en el chat con el enlace de descarga.
 - Compatible con auras de WeakAuras que usan `WeakAuras.GetUnitNameplate`.
 
 ### Límites (sin Awesome WotLK)

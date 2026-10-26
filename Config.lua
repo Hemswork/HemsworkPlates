@@ -1,5 +1,7 @@
 --------------------------------------------------------------------
 -- HemsworkPlates - Panel de configuracion (/hms)
+-- Ventana oscura con menu lateral; cada seccion se monta con un
+-- "layout" de dos columnas con bloques de titulo y desplazamiento.
 --------------------------------------------------------------------
 local addonName, SP = ...
 local function T(s) return SP.T(s) end
@@ -8,7 +10,7 @@ local frame
 local widgets = {}
 local uid = 0
 local function UName() uid = uid + 1; return "HemsworkPlatesW" .. uid end
-local UpdateClassicState
+local UpdateDeps
 local lastLanguage
 local function Apply()
 	-- Cambio de idioma: los textos del panel se crean una vez, hace falta /reload
@@ -20,65 +22,156 @@ local function Apply()
 		lastLanguage = SP.cfg.language
 	end
 	SP.Refresh()
-	UpdateClassicState()
+	UpdateDeps()
 end
 
--- Ajustes que el estilo Clasico WotLK no usa (lo decide la textura original)
-local classicOff = {}
-local function ClassicOff(w) classicOff[#classicOff + 1] = w end
-function UpdateClassicState()
-	local off = SP.cfg.shape == "classic" or SP.cfg.shape == "old"
-	for _, w in ipairs(classicOff) do
-		w:SetAlpha(off and 0.35 or 1)
-		w:EnableMouse(not off)
-	end
+------------------------------ ESTILO -----------------------------
+local FLAT = "Interface\\Buttons\\WHITE8X8"
+local ACCENT = { 1, 0.78, 0.2 }          -- dorado del castbar
+local BG = { 0.06, 0.06, 0.07, 0.96 }
+local PANEL = { 0.1, 0.1, 0.11, 1 }
+local EDGE = { 0.22, 0.22, 0.25, 1 }
+
+local function Skin(f, bg, edge)
+	f:SetBackdrop({ bgFile = FLAT, edgeFile = FLAT, edgeSize = 1 })
+	bg, edge = bg or BG, edge or EDGE
+	f:SetBackdropColor(bg[1], bg[2], bg[3], bg[4])
+	f:SetBackdropBorderColor(edge[1], edge[2], edge[3], edge[4])
 end
+SP.SkinFrame = Skin
+
+-- Boton plano oscuro (sustituye a los botones rojos de Blizzard)
+local function FlatButton(parent, w, h, text)
+	local b = CreateFrame("Button", nil, parent)
+	b:SetWidth(w)
+	b:SetHeight(h)
+	Skin(b, PANEL)
+	b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	b.text:SetPoint("CENTER", 0, 0)
+	b.text:SetText(text or "")
+	function b:SetText(t) self.text:SetText(t) end
+	function b:GetFontString() return self.text end
+	b:SetScript("OnEnter", function(self) if self:IsEnabled() == 1 or self:IsEnabled() == true then self:SetBackdropBorderColor(ACCENT[1], ACCENT[2], ACCENT[3], 1) end end)
+	b:SetScript("OnLeave", function(self) self:SetBackdropBorderColor(EDGE[1], EDGE[2], EDGE[3], EDGE[4]) end)
+	return b
+end
+SP.FlatButton = FlatButton
+
+-- Tooltip al pasar el raton
+local function Tip(f, text)
+	if not text then return end
+	f:HookScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText(T(text), 1, 1, 1, 1, true)
+		GameTooltip:Show()
+	end)
+	f:HookScript("OnLeave", function() GameTooltip:Hide() end)
+end
+
+-- Opciones que dependen de otra (se ven grises si no aplican)
+local deps = {}
+local function Dep(w, cond)
+	if w then deps[#deps + 1] = { w, cond } end
+	return w
+end
+local function SetActive(w, on)
+	w:SetAlpha(on and 1 or 0.35)
+	if w.Enable and w.Disable then
+		if on then w:Enable() else w:Disable() end
+	else
+		w:EnableMouse(on)
+	end
+	if w.box then w.box:EnableMouse(on) end
+end
+function UpdateDeps()
+	for _, d in ipairs(deps) do SetActive(d[1], d[2]() and true or false) end
+end
+local function IsClassicStyle() return SP.cfg.shape == "classic" or SP.cfg.shape == "old" end
+local function NotClassic() return not IsClassicStyle() end
+local function On(key) return function() return SP.cfg[key] end end
 
 ------------------------------ WIDGETS -----------------------------
-local function MakeCheck(parent, x, y, label, key)
+local function MakeCheck(parent, x, y, label, key, tip)
 	local cb = CreateFrame("CheckButton", UName(), parent, "InterfaceOptionsCheckButtonTemplate")
-	cb:SetPoint("TOPLEFT", x, y)
+	cb:SetPoint("TOPLEFT", x - 4, y + 2)
 	_G[cb:GetName() .. "Text"]:SetText(label)
+	_G[cb:GetName() .. "Text"]:SetWidth(210)
+	_G[cb:GetName() .. "Text"]:SetJustifyH("LEFT")
 	cb:SetScript("OnClick", function(self)
 		SP.cfg[key] = self:GetChecked() and true or false
 		Apply()
 	end)
 	function cb:Refresh() self:SetChecked(SP.cfg[key]) end
+	Tip(cb, tip)
 	widgets[#widgets + 1] = cb
 	return cb
 end
 
-local function MakeSlider(parent, x, y, label, key, minV, maxV, step, fmt)
+-- Deslizador con casilla para escribir el valor exacto
+local function MakeSlider(parent, x, y, label, key, minV, maxV, step, fmt, tip)
+	fmt = fmt or "%d"
 	local name = UName()
 	local s = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
-	s:SetPoint("TOPLEFT", x, y)
-	s:SetWidth(190)
+	s:SetPoint("TOPLEFT", x + 2, y - 16)
+	s:SetWidth(168)
+	s:SetHeight(16)
 	s:SetMinMaxValues(minV, maxV)
 	s:SetValueStep(step)
-	_G[name .. "Low"]:SetText(minV)
-	_G[name .. "High"]:SetText(maxV)
+	_G[name .. "Low"]:SetText("")
+	_G[name .. "High"]:SetText("")
 	local text = _G[name .. "Text"]
+	text:ClearAllPoints()
+	text:SetPoint("BOTTOMLEFT", s, "TOPLEFT", 0, 2)
+	text:SetFontObject("GameFontNormalSmall")
+	text:SetText(label)
+
+	local box = CreateFrame("EditBox", UName(), parent, "InputBoxTemplate")
+	box:SetWidth(40)
+	box:SetHeight(18)
+	box:SetPoint("LEFT", s, "RIGHT", 12, 0)
+	box:SetAutoFocus(false)
+	box:SetFontObject("GameFontHighlightSmall")
+	box:SetJustifyH("CENTER")
+	s.box = box
+
+	local function Quant(v)
+		v = tonumber(v) or minV
+		if v < minV then v = minV elseif v > maxV then v = maxV end
+		return math.floor(v / step + 0.5) * step
+	end
 	s:SetScript("OnValueChanged", function(self, v)
-		v = math.floor(v / step + 0.5) * step
-		text:SetText(label .. ": " .. string.format(fmt or "%d", v))
+		v = Quant(v)
+		if not box:HasFocus() then box:SetText(string.format(fmt, v)) end
 		if self.loading then return end
 		SP.cfg[key] = v
 		Apply()
 	end)
+	box:SetScript("OnEnterPressed", function(self)
+		local v = Quant(self:GetText())
+		self:ClearFocus()
+		s:SetValue(v)
+		self:SetText(string.format(fmt, v))
+	end)
+	box:SetScript("OnEscapePressed", function(self)
+		self:ClearFocus()
+		self:SetText(string.format(fmt, SP.cfg[key] or minV))
+	end)
 	function s:Refresh()
 		self.loading = true
 		self:SetValue(SP.cfg[key])
+		box:SetText(string.format(fmt, Quant(SP.cfg[key])))
 		self.loading = false
 	end
+	Tip(s, tip)
 	widgets[#widgets + 1] = s
 	return s
 end
 
-local function MakeSwatch(parent, x, y, label, getter, setter)
+local function MakeSwatch(parent, x, y, label, getter, setter, tip)
 	local b = CreateFrame("Button", UName(), parent)
 	b:SetWidth(18)
 	b:SetHeight(18)
-	b:SetPoint("TOPLEFT", x, y)
+	b:SetPoint("TOPLEFT", x, y - 2)
 	local edge = b:CreateTexture(nil, "BACKGROUND")
 	edge:SetAllPoints()
 	edge:SetTexture(0, 0, 0, 1)
@@ -86,7 +179,7 @@ local function MakeSwatch(parent, x, y, label, getter, setter)
 	tex:SetPoint("TOPLEFT", 1, -1)
 	tex:SetPoint("BOTTOMRIGHT", -1, 1)
 	local fs = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	fs:SetPoint("LEFT", b, "RIGHT", 6, 0)
+	fs:SetPoint("LEFT", b, "RIGHT", 8, 0)
 	fs:SetText(label)
 	b.label = fs
 	function b:Refresh()
@@ -112,6 +205,7 @@ local function MakeSwatch(parent, x, y, label, getter, setter)
 		ColorPickerFrame:Hide()
 		ColorPickerFrame:Show()
 	end)
+	Tip(b, tip)
 	widgets[#widgets + 1] = b
 	return b
 end
@@ -120,9 +214,9 @@ local function CfgColor(key)
 	return function() local c = SP.cfg[key]; return c[1], c[2], c[3] end,
 	       function(r, g, b) local c = SP.cfg[key]; c[1], c[2], c[3] = r, g, b end
 end
-local function MakeCfgSwatch(parent, x, y, label, key)
+local function MakeCfgSwatch(parent, x, y, label, key, tip)
 	local g, s = CfgColor(key)
-	return MakeSwatch(parent, x, y, label, g, s)
+	return MakeSwatch(parent, x, y, label, g, s, tip)
 end
 
 -- Lista desplegable propia (con scroll de rueda)
@@ -132,9 +226,7 @@ local function ShowList(anchor, opts, current, onPick)
 	if not listFrame then
 		listFrame = CreateFrame("Frame", "HemsworkPlatesList", UIParent)
 		listFrame:SetFrameStrata("TOOLTIP")
-		listFrame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
-		listFrame:SetBackdropColor(0.08, 0.08, 0.08, 0.97)
-		listFrame:SetBackdropBorderColor(0, 0, 0, 1)
+		Skin(listFrame, { 0.08, 0.08, 0.09, 0.98 })
 		listFrame:EnableMouse(true)
 		listFrame:EnableMouseWheel(true)
 		listFrame.rows = {}
@@ -144,10 +236,10 @@ local function ShowList(anchor, opts, current, onPick)
 			r:SetPoint("TOPLEFT", 2, -2 - (i - 1) * 18)
 			r:SetPoint("TOPRIGHT", -2, -2 - (i - 1) * 18)
 			r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-			r.text:SetPoint("LEFT", 4, 0)
+			r.text:SetPoint("LEFT", 6, 0)
 			local hl = r:CreateTexture(nil, "HIGHLIGHT")
 			hl:SetAllPoints()
-			hl:SetTexture(1, 1, 1, 0.15)
+			hl:SetTexture(1, 1, 1, 0.12)
 			r:SetScript("OnClick", function(self)
 				listFrame:Hide()
 				if self.opt then listFrame.onPick(self.opt) end
@@ -160,7 +252,7 @@ local function ShowList(anchor, opts, current, onPick)
 				if o then
 					r.opt = o
 					r.text:SetText(o[1])
-					if o[2] == self.current then r.text:SetTextColor(1, 0.82, 0) else r.text:SetTextColor(1, 1, 1) end
+					if o[2] == self.current then r.text:SetTextColor(ACCENT[1], ACCENT[2], ACCENT[3]) else r.text:SetTextColor(1, 1, 1) end
 					r:Show()
 				else
 					r.opt = nil
@@ -189,13 +281,18 @@ local function ShowList(anchor, opts, current, onPick)
 	listFrame:Show()
 end
 
-local function MakeDropdown(parent, x, y, label, key, getOptions)
-	local b = CreateFrame("Button", UName(), parent, "UIPanelButtonTemplate")
-	b:SetWidth(190)
-	b:SetHeight(22)
-	b:SetPoint("TOPLEFT", x, y)
+local function MakeDropdown(parent, x, y, label, key, getOptions, tip)
+	local b = FlatButton(parent, 210, 20, "")
+	b:SetPoint("TOPLEFT", x, y - 16)
+	b.text:ClearAllPoints()
+	b.text:SetPoint("LEFT", 8, 0)
+	b.text:SetPoint("RIGHT", -18, 0)
+	b.text:SetJustifyH("LEFT")
+	local arrow = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	arrow:SetPoint("RIGHT", -6, 0)
+	arrow:SetText("v")
 	local lbl = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	lbl:SetPoint("BOTTOMLEFT", b, "TOPLEFT", 2, 2)
+	lbl:SetPoint("BOTTOMLEFT", b, "TOPLEFT", 0, 3)
 	lbl:SetText(label)
 	function b:Refresh()
 		local cur, text = SP.cfg[key], SP.cfg[key]
@@ -215,18 +312,20 @@ local function MakeDropdown(parent, x, y, label, key, getOptions)
 			Apply()
 		end)
 	end)
+	Tip(b, tip)
 	widgets[#widgets + 1] = b
+	return b
 end
 
-local function MakeEditBox(parent, x, y, label, key)
+local function MakeEditBox(parent, x, y, label, key, tip)
 	local e = CreateFrame("EditBox", UName(), parent, "InputBoxTemplate")
-	e:SetWidth(180)
+	e:SetWidth(204)
 	e:SetHeight(20)
-	e:SetPoint("TOPLEFT", x + 6, y)
+	e:SetPoint("TOPLEFT", x + 6, y - 16)
 	e:SetAutoFocus(false)
 	e:SetFontObject("GameFontHighlightSmall")
 	local lbl = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	lbl:SetPoint("BOTTOMLEFT", e, "TOPLEFT", -4, 2)
+	lbl:SetPoint("BOTTOMLEFT", e, "TOPLEFT", -6, 3)
 	lbl:SetText(label)
 	e:SetScript("OnEnterPressed", function(self)
 		SP.cfg[key] = self:GetText()
@@ -235,7 +334,76 @@ local function MakeEditBox(parent, x, y, label, key)
 	end)
 	e:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 	function e:Refresh() self:SetText(SP.cfg[key] or ""); self:SetCursorPosition(0) end
+	Tip(e, tip)
 	widgets[#widgets + 1] = e
+	return e
+end
+
+------------------------------ LAYOUT ------------------------------
+-- Coloca los controles en dos columnas, fila a fila. Header() abre un bloque
+-- con titulo y linea separadora a todo el ancho.
+local COLX = { 14, 274 }
+local SIZES = { check = 26, slider = 46, dropdown = 44, color = 26, edit = 44, button = 30 }
+
+local function NewLayout(page)
+	local L = { page = page, y = -10, col = 1, rowH = 0 }
+	function L:EndRow()
+		if self.col == 2 then
+			self.y = self.y - self.rowH
+			self.col, self.rowH = 1, 0
+		end
+	end
+	function L:Next(kind)
+		local h = SIZES[kind] or 30
+		local x = COLX[self.col]
+		local y = self.y
+		if self.col == 1 then
+			self.col, self.rowH = 2, h
+		else
+			self.rowH = math.max(self.rowH, h)
+			self.y = self.y - self.rowH
+			self.col, self.rowH = 1, 0
+		end
+		return x, y
+	end
+	function L:Header(text)
+		self:EndRow()
+		if self.y < -10 then self.y = self.y - 8 end
+		local fs = self.page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+		fs:SetPoint("TOPLEFT", 12, self.y)
+		fs:SetText(text)
+		fs:SetTextColor(ACCENT[1], ACCENT[2], ACCENT[3])
+		local line = self.page:CreateTexture(nil, "ARTWORK")
+		line:SetTexture(EDGE[1], EDGE[2], EDGE[3], 1)
+		line:SetHeight(1)
+		line:SetPoint("TOPLEFT", 12, self.y - 17)
+		line:SetPoint("TOPRIGHT", -12, self.y - 17)
+		self.y = self.y - 26
+	end
+	function L:Note(text)
+		self:EndRow()
+		local fs = self.page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+		fs:SetPoint("TOPLEFT", 14, self.y)
+		fs:SetWidth(500)
+		fs:SetJustifyH("LEFT")
+		fs:SetText(text)
+		self.y = self.y - math.max(16, fs:GetStringHeight() + 6)
+	end
+	function L:Check(label, key, tip) local x, y = self:Next("check"); return MakeCheck(self.page, x, y, label, key, tip) end
+	function L:Slider(label, key, a, b, step, fmt, tip) local x, y = self:Next("slider"); return MakeSlider(self.page, x, y, label, key, a, b, step, fmt, tip) end
+	function L:Dropdown(label, key, opts, tip) local x, y = self:Next("dropdown"); return MakeDropdown(self.page, x, y, label, key, opts, tip) end
+	function L:Color(label, key, tip) local x, y = self:Next("color"); return MakeCfgSwatch(self.page, x, y, label, key, tip) end
+	function L:Edit(label, key, tip) local x, y = self:Next("edit"); return MakeEditBox(self.page, x, y, label, key, tip) end
+	function L:Button(text, onClick, tip)
+		local x, y = self:Next("button")
+		local b = FlatButton(self.page, 210, 22, text)
+		b:SetPoint("TOPLEFT", x, y - 4)
+		b:SetScript("OnClick", onClick)
+		Tip(b, tip)
+		return b
+	end
+	function L:Height() self:EndRow(); return -self.y + 12 end
+	return L
 end
 
 ------------------------------ OPCIONES ----------------------------
@@ -298,120 +466,208 @@ local function OutlineOptions()
 	return { { T("Ninguno"), "" }, { T("Contorno"), "OUTLINE" }, { T("Contorno grueso"), "THICKOUTLINE" } }
 end
 
------------------------------- PANELES -----------------------------
+------------------------------ SECCIONES ----------------------------
 local CLASS_ORDER = { "WARRIOR", "PALADIN", "DEATHKNIGHT", "DRUID", "HUNTER", "MAGE", "PRIEST", "ROGUE", "SHAMAN", "WARLOCK" }
 
-local function BuildGeneral(p)
-	MakeSlider(p, 10, -20, T("Ancho"), "width", 60, 200, 1)
-	MakeSlider(p, 10, -66, T("Alto de barra"), "height", 4, 24, 1)
-	MakeSlider(p, 10, -112, T("Alto cast bar"), "castHeight", 4, 24, 1)
-	MakeSlider(p, 10, -158, T("Escala"), "scale", 0.5, 2, 0.05, "%.2f")
-	MakeSlider(p, 10, -204, T("Opacidad sin target"), "nonTargetAlpha", 0.2, 1, 0.05, "%.2f")
-	ClassicOff(MakeSlider(p, 10, -250, T("Tamano icono cast"), "castIconSize", 8, 30, 1))
-	ClassicOff(MakeSlider(p, 10, -296, T("Grosor del borde"), "borderSize", 0, 4, 0.5, "%.1f"))
-	MakeCheck(p, 5, -332, T("Pixel perfect (bordes nitidos)"), "pixelPerfect")
+local function BuildLook(L)
+	L:Header(T("Estilo"))
+	L:Dropdown(T("Forma de las barras"), "shape", ShapeOptions)
+	L:Dropdown(T("Textura de la barra"), "texture", TextureOptions)
+	L:Check(T("Pixel perfect (bordes nitidos)"), "pixelPerfect",
+		"Ajusta tamanos y posiciones a pixeles exactos de tu pantalla para que los bordes se vean nitidos.")
+	Dep(L:Slider(T("Grosor del borde"), "borderSize", 0, 4, 0.5, "%.1f", "Solo en los estilos Cuadrada y Redonda."), NotClassic)
 
-	MakeDropdown(p, 250, -20, T("Forma de las barras"), "shape", ShapeOptions)
-	MakeDropdown(p, 250, -70, T("Textura de la barra"), "texture", TextureOptions)
-	MakeCheck(p, 245, -100, T("Apilar placas (evitar solapamiento)"), "stacking")
-	MakeSlider(p, 250, -150, T("Separacion"), "stackGap", 0, 10, 1)
-	MakeSlider(p, 250, -196, T("Velocidad de apilado"), "stackSpeed", 2, 30, 1)
-	MakeCheck(p, 245, -226, T("Mostrar cast bar"), "showCast")
-	MakeCheck(p, 245, -252, T("Icono del hechizo"), "showCastIcon")
-	MakeCheck(p, 245, -278, T("Tiempo restante del cast"), "showCastTime")
-	MakeCheck(p, 245, -304, T("Nombre del hechizo en el cast"), "showCastText")
+	L:Header(T("Tamano"))
+	L:Slider(T("Ancho"), "width", 60, 200, 1)
+	L:Slider(T("Alto de barra"), "height", 4, 24, 1)
+	L:Slider(T("Escala"), "scale", 0.5, 2, 0.05, "%.2f")
+	L:Slider(T("Opacidad sin target"), "nonTargetAlpha", 0.2, 1, 0.05, "%.2f",
+		"Opacidad de las placas que no son tu target (solo cuando tienes un target).")
 
-	-- Mover la placa entera (izquierda/derecha, arriba/abajo)
-	MakeSlider(p, 10, -378, T("Mover horizontal (X)"), "offsetX", -100, 100, 1)
-	MakeSlider(p, 250, -350, T("Mover vertical (Y)"), "offsetY", -100, 100, 1)
+	L:Header(T("Posicion"))
+	L:Slider(T("Mover horizontal (X)"), "offsetX", -100, 100, 1)
+	L:Slider(T("Mover vertical (Y)"), "offsetY", -100, 100, 1)
+
+	L:Header(T("Apilado"))
+	L:Check(T("Apilar placas (evitar solapamiento)"), "stacking",
+		"Separa las placas que se solapan. El juego ya las separa por su cuenta; activalo solo si lo prefieres.")
+	L:EndRow()
+	Dep(L:Slider(T("Separacion"), "stackGap", 0, 10, 1), On("stacking"))
+	Dep(L:Slider(T("Velocidad de apilado"), "stackSpeed", 2, 30, 1), On("stacking"))
 end
 
-local function BuildText(p)
-	MakeDropdown(p, 10, -24, T("Fuente"), "font", FontOptions)
-	MakeDropdown(p, 10, -74, T("Contorno"), "fontOutline", OutlineOptions)
-	MakeEditBox(p, 10, -126, T("Ruta de fuente personalizada (Enter)"), "font")
-	MakeSlider(p, 10, -176, T("Tamano de texto"), "fontSize", 6, 20, 1)
-	MakeSlider(p, 10, -268, T("Tamano texto del cast"), "castFontSize", 5, 16, 1)
-	MakeDropdown(p, 10, -320, T("Idioma / Language"), "language", LanguageOptions)
-	ClassicOff(MakeSlider(p, 10, -222, T("Separacion del nivel"), "levelOffset", 0, 30, 1))
+local function BuildCast(L)
+	local cast = On("showCast")
+	L:Header(T("Castbar"))
+	L:Check(T("Mostrar cast bar"), "showCast")
+	Dep(L:Check(T("Icono del hechizo"), "showCastIcon"), cast)
+	Dep(L:Check(T("Nombre del hechizo en el cast"), "showCastText"), cast)
+	Dep(L:Check(T("Tiempo restante del cast"), "showCastTime"), cast)
+	Dep(L:Slider(T("Alto cast bar"), "castHeight", 4, 24, 1), cast)
+	Dep(L:Slider(T("Tamano texto del cast"), "castFontSize", 5, 16, 1), cast)
+	Dep(L:Slider(T("Tamano icono cast"), "castIconSize", 8, 30, 1, nil, "Solo en los estilos Cuadrada y Redonda."),
+		function() return SP.cfg.showCast and NotClassic() end)
 
-	MakeCheck(p, 245, -14, T("Mostrar nombre"), "showName")
-	MakeCheck(p, 245, -44, T("Mostrar nivel"), "showLevel")
-	MakeCheck(p, 245, -74, T("Mostrar texto de vida"), "showHealthText")
-	MakeCfgSwatch(p, 252, -112, T("Color del texto"), "textColor")
+	L:Header(T("Interrupciones"))
+	Dep(L:Slider(T("Tiempo de 'Interrupted' (s)"), "castInterruptHold", 0.3, 3, 0.1, "%.1f",
+		"Cuanto tiempo se queda la barra parada en rojo al cortar un cast."), cast)
+	Dep(L:Check(T("Mostrar quien corto el cast"), "showInterrupter"), cast)
+	L:Check(T("Estilo de cast en target y focus"), "tfCast",
+		"Aplica el rojo de 'Interrupted' y el color de no interrumpible a los castbars de los marcos de target y focus.")
 
-	-- Mover el nombre (con 0, 0 queda en el centro exacto de la barra)
-	MakeSlider(p, 250, -164, T("Mover nombre X"), "nameX", -60, 60, 1)
-	MakeSlider(p, 250, -210, T("Mover nombre Y"), "nameY", -40, 40, 1)
+	L:Header(T("Colores del cast"))
+	L:Color(T("Color de cast bar"), "castColor")
+	L:Color(T("Cast no interrumpible"), "castNoInterruptColor")
+	L:Color(T("Cast interrumpido"), "castInterruptColor")
 end
 
-local function BuildColors(p)
-	MakeCheck(p, 5, -2, T("Color de clase en jugadores"), "classColorPlayers")
+local function BuildTextPage(L)
+	L:Header(T("Fuente"))
+	L:Dropdown(T("Fuente"), "font", FontOptions)
+	L:Dropdown(T("Contorno"), "fontOutline", OutlineOptions)
+	L:Edit(T("Ruta de fuente personalizada (Enter)"), "font", "Ruta de un archivo .ttf, por ejemplo Interface\\AddOns\\MiFuente\\fuente.ttf")
+	L:Slider(T("Tamano de texto"), "fontSize", 6, 20, 1)
+	L:Color(T("Color del texto"), "textColor")
 
-	local y = -36
-	for i, class in ipairs(CLASS_ORDER) do
-		local col = (i - 1) % 2
-		local row = math.floor((i - 1) / 2)
-		local x, yy = 14 + col * 115, y - row * 26
-		local sw = MakeSwatch(p, x, yy, (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[class]) or class,
+	L:Header(T("Nombre y nivel"))
+	L:Check(T("Mostrar nombre"), "showName")
+	L:Check(T("Mostrar nivel"), "showLevel")
+	Dep(L:Slider(T("Mover nombre X"), "nameX", -60, 60, 1, nil, "Con 0 el nombre queda en el centro exacto de la barra."), On("showName"))
+	Dep(L:Slider(T("Mover nombre Y"), "nameY", -40, 40, 1), On("showName"))
+	Dep(L:Slider(T("Separacion del nivel"), "levelOffset", 0, 30, 1, nil, "Solo en los estilos Cuadrada y Redonda."),
+		function() return SP.cfg.showLevel and NotClassic() end)
+
+	L:Header(T("Texto de vida"))
+	L:Check(T("Mostrar texto de vida"), "showHealthText")
+	Dep(L:Dropdown(T("Formato del texto de vida"), "healthFormat", HealthFormatOptions), On("showHealthText"))
+	Dep(L:Check(T("Ocultar texto con vida al maximo"), "healthHideMax"), On("showHealthText"))
+
+	L:Header(T("Idioma / Language"))
+	L:Dropdown(T("Idioma / Language"), "language", LanguageOptions, "Automatico: espanol si tu cliente esta en espanol, ingles en cualquier otro.")
+end
+
+local function BuildColorsPage(L)
+	L:Header(T("Color de clase"))
+	L:Check(T("Color de clase en jugadores"), "classColorPlayers")
+	L:EndRow()
+	for _, class in ipairs(CLASS_ORDER) do
+		local x, y = L:Next("color")
+		local sw = MakeSwatch(L.page, x, y, (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[class]) or class,
 			function() local c = SP.cfg.classColors[class]; return c[1], c[2], c[3] end,
 			function(r, g, b) local c = SP.cfg.classColors[class]; c[1], c[2], c[3] = r, g, b end)
 		local c = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
 		if c then sw.label:SetTextColor(c.r, c.g, c.b) end
+		Dep(sw, On("classColorPlayers"))
 	end
 
-	MakeCfgSwatch(p, 250, -8, T("Hostil"), "hostileColor")
-	MakeCfgSwatch(p, 250, -34, T("Neutral"), "neutralColor")
-	MakeCfgSwatch(p, 250, -60, T("Amistoso"), "friendlyColor")
-	MakeCfgSwatch(p, 250, -86, T("Tapeado por otro"), "tappedColor")
-	MakeCfgSwatch(p, 250, -128, T("Fondo de barra"), "bgColor")
-	ClassicOff(MakeCfgSwatch(p, 250, -154, T("Borde"), "borderColor"))
-	ClassicOff(MakeCfgSwatch(p, 250, -180, T("Borde del target"), "targetBorderColor"))
-	MakeCfgSwatch(p, 250, -206, T("Color de cast bar"), "castColor")
-	MakeCfgSwatch(p, 250, -232, T("Cast no interrumpible"), "castNoInterruptColor")
-	MakeCfgSwatch(p, 250, -258, T("Cast interrumpido"), "castInterruptColor")
+	L:Header(T("Reaccion"))
+	L:Color(T("Hostil"), "hostileColor")
+	L:Color(T("Neutral"), "neutralColor")
+	L:Color(T("Amistoso"), "friendlyColor")
+	L:Color(T("Tapeado por otro"), "tappedColor")
+
+	L:Header(T("Barra"))
+	L:Color(T("Fondo de barra"), "bgColor")
+	Dep(L:Color(T("Borde"), "borderColor", "Solo en los estilos Cuadrada y Redonda."), NotClassic)
+	Dep(L:Color(T("Borde del target"), "targetBorderColor", "Solo en los estilos Cuadrada y Redonda."), NotClassic)
 end
 
--- Funciones traidas de RefinedBlizzPlates
-local function BuildExtras(p)
-	MakeCheck(p, 5, -2, T("Brillo en el target"), "targetGlow")
-	MakeCfgSwatch(p, 14, -32, T("Color brillo target"), "targetGlowColor")
-	MakeSlider(p, 10, -70, T("Intensidad brillo target"), "targetGlowAlpha", 0.1, 1, 0.05, "%.2f")
-	MakeCheck(p, 5, -98, T("Brillo al pasar el raton"), "hoverGlow")
-	MakeCfgSwatch(p, 14, -128, T("Color brillo raton"), "hoverGlowColor")
-	MakeSlider(p, 10, -166, T("Intensidad brillo raton"), "hoverGlowAlpha", 0.1, 1, 0.05, "%.2f")
-	MakeSlider(p, 10, -212, T("Tamano del brillo"), "glowSize", 2, 16, 1)
-	MakeDropdown(p, 10, -262, T("Formato del texto de vida"), "healthFormat", HealthFormatOptions)
-	MakeCheck(p, 5, -290, T("Ocultar texto con vida al maximo"), "healthHideMax")
+local function BuildHighlight(L)
+	L:Header(T("Brillo en el target"))
+	L:Check(T("Brillo en el target"), "targetGlow")
+	Dep(L:Color(T("Color brillo target"), "targetGlowColor"), On("targetGlow"))
+	Dep(L:Slider(T("Intensidad brillo target"), "targetGlowAlpha", 0.1, 1, 0.05, "%.2f"), On("targetGlow"))
 
-	MakeSlider(p, 250, -20, T("Escala del target"), "targetScale", 0.8, 2, 0.05, "%.2f")
-	MakeSlider(p, 250, -66, T("Escala de aliados"), "friendlyScale", 0.5, 1.5, 0.05, "%.2f")
-	MakeCheck(p, 245, -96, T("Mantener target en pantalla"), "clampTarget")
-	MakeSlider(p, 250, -142, T("Margen superior"), "clampMargin", 0, 150, 5)
+	L:Header(T("Brillo al pasar el raton"))
+	L:Check(T("Brillo al pasar el raton"), "hoverGlow")
+	Dep(L:Color(T("Color brillo raton"), "hoverGlowColor"), On("hoverGlow"))
+	Dep(L:Slider(T("Intensidad brillo raton"), "hoverGlowAlpha", 0.1, 1, 0.05, "%.2f"), On("hoverGlow"))
+	Dep(L:Slider(T("Tamano del brillo"), "glowSize", 2, 16, 1), function() return SP.cfg.targetGlow or SP.cfg.hoverGlow end)
 
-	MakeSlider(p, 250, -196, T("Tiempo de 'Interrupted' (s)"), "castInterruptHold", 0.3, 3, 0.1, "%.1f")
-	MakeCheck(p, 245, -226, T("Mostrar quien corto el cast"), "showInterrupter")
-	MakeCheck(p, 245, -252, T("Estilo de cast en target y focus"), "tfCast")
+	L:Header(T("Tu target"))
+	L:Slider(T("Escala del target"), "targetScale", 0.8, 2, 0.05, "%.2f")
+	L:Check(T("Mantener target en pantalla"), "clampTarget",
+		"Si la placa de tu target se sale por arriba de la pantalla, se queda pegada al borde superior.")
+	Dep(L:Slider(T("Margen superior"), "clampMargin", 0, 150, 5), On("clampTarget"))
 end
 
-local function BuildPvP(p)
-	MakeCheck(p, 5, -2, T("Numeros de arena (enemigos)"), "arenaIDs")
-	MakeCheck(p, 5, -28, T("Numeros de grupo (aliados)"), "partyIDs")
-	MakeDropdown(p, 10, -84, T("Posicion del numero de arena"), "arenaIDPos", ArenaIDPosOptions)
+local function BuildArena(L)
+	local ids = function() return SP.cfg.arenaIDs or SP.cfg.partyIDs end
+	L:Header(T("Numeros de arena"))
+	L:Check(T("Numeros de arena (enemigos)"), "arenaIDs", "Muestra 1-5 en cada rival de arena (en rojo).")
+	L:Check(T("Numeros de grupo (aliados)"), "partyIDs", "Muestra el numero de cada companero de arena (en verde).")
+	Dep(L:Dropdown(T("Posicion del numero de arena"), "arenaIDPos", ArenaIDPosOptions), ids)
 
-	-- Distinguir aliados de enemigos (en arena todos tienen color de clase)
-	MakeCheck(p, 5, -124, T("Aliados con color de clase"), "friendlyClassColor")
-	MakeCfgSwatch(p, 14, -154, T("Color de jugadores aliados"), "friendlyPlayerColor")
-	MakeSlider(p, 10, -196, T("Tamano de aliados"), "friendlyScale", 0.5, 1.5, 0.05, "%.2f")
+	L:Header(T("Aliados"))
+	L:Check(T("Aliados con color de clase"), "friendlyClassColor",
+		"Desmarcado: tus aliados salen en un color fijo (azul) para no confundirlos con los enemigos.")
+	Dep(L:Color(T("Color de jugadores aliados"), "friendlyPlayerColor"), function() return not SP.cfg.friendlyClassColor end)
+	L:Slider(T("Tamano de aliados"), "friendlyScale", 0.5, 1.5, 0.05, "%.2f")
 
-	local h = p:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	h:SetPoint("TOPLEFT", 250, -2)
-	h:SetText(T("Aliados solo con nombre"))
-	MakeDropdown(p, 250, -38, T("Mundo abierto"), "barlessWorld", BarlessOptions)
-	MakeDropdown(p, 250, -88, T("Mazmorras y bandas"), "barlessPvE", BarlessOptions)
-	MakeDropdown(p, 250, -138, T("Campos de batalla"), "barlessBG", BarlessOptions)
-	MakeDropdown(p, 250, -188, T("Arenas"), "barlessArena", BarlessOptions)
-	MakeCheck(p, 245, -218, T("Barras normales en tu target"), "barlessExcludeTarget")
+	L:Header(T("Aliados solo con nombre"))
+	L:Note(T("Las placas amistosas muestran solo el nombre, sin barra, en las zonas que elijas."))
+	L:Dropdown(T("Mundo abierto"), "barlessWorld", BarlessOptions)
+	L:Dropdown(T("Mazmorras y bandas"), "barlessPvE", BarlessOptions)
+	L:Dropdown(T("Campos de batalla"), "barlessBG", BarlessOptions)
+	L:Dropdown(T("Arenas"), "barlessArena", BarlessOptions)
+	L:Check(T("Barras normales en tu target"), "barlessExcludeTarget")
+end
+
+-- Debuffs importantes (integrados desde la WeakAura)
+local CAT_LABELS = {
+	immunities = "Inmunidades", cc = "Control (CC)", silence = "Silencios", roots = "Raices",
+	disarms = "Desarmes", defensives = "Defensivos", offensives = "Ofensivos", others = "Otros",
+}
+
+local function DebuffPosOptions()
+	return { { T("A la derecha"), "right" }, { T("A la izquierda"), "left" } }
+end
+
+local function BuildDebuffsPage(L)
+	local on = On("debuffs")
+	L:Header(T("Debuffs importantes"))
+	L:Check(T("Mostrar debuffs importantes"), "debuffs",
+		"Muestra en cada placa enemiga el aura mas importante segun su categoria y prioridad.")
+	Dep(L:Check(T("Solo en enemigos"), "debuffEnemyOnly"), on)
+	Dep(L:Check(T("Solo en arena"), "debuffArenaOnly"), on)
+	Dep(L:Check(T("Tiempo restante en el icono"), "debuffTimer"), on)
+	Dep(L:Slider(T("Tamano del icono"), "debuffSize", 16, 60, 1), on)
+	Dep(L:Dropdown(T("Posicion"), "debuffPos", DebuffPosOptions), on)
+	Dep(L:Check(T("Bloqueos de interrupcion (Pummel, Kick...)"), "debuffLockouts",
+		"Pummel, Shield Bash, Kick, etc. no dejan aura: se detectan en el registro de combate y se muestran como silencio."), on)
+
+	L:Header(T("Categorias (por prioridad)"))
+	for i, cat in ipairs(SP.DEBUFF_CATS or {}) do
+		local x, y = L:Next("check")
+		local cb = CreateFrame("CheckButton", UName(), L.page, "InterfaceOptionsCheckButtonTemplate")
+		cb:SetPoint("TOPLEFT", x - 4, y + 2)
+		_G[cb:GetName() .. "Text"]:SetText(i .. ". " .. T(CAT_LABELS[cat] or cat))
+		cb:SetScript("OnClick", function(self)
+			SP.cfg.debuffCats[cat] = self:GetChecked() and true or false
+			Apply()
+		end)
+		function cb:Refresh() self:SetChecked(SP.cfg.debuffCats[cat] ~= false) end
+		widgets[#widgets + 1] = cb
+		Dep(cb, on)
+	end
+end
+
+local function GCDPosOptions()
+	return { { T("A la izquierda"), "left" }, { T("A la derecha"), "right" } }
+end
+
+local function BuildGCDPage(L)
+	local on = On("gcd")
+	L:Header(T("GCD de arena"))
+	L:Note(T("Muestra el ultimo hechizo de cada rival de arena con un barrido que dura su GCD (clase, haste y procs instantaneos). Basado en NameplateArenaGCDs."))
+	L:Check(T("Mostrar GCD de enemigos de arena"), "gcd")
+	Dep(L:Dropdown(T("Posicion"), "gcdPos", GCDPosOptions), on)
+	Dep(L:Check(T("Tiempo restante en el icono"), "gcdTimer"), on)
+	Dep(L:Slider(T("Tamano del icono"), "gcdSize", 14, 64, 1), on)
+	Dep(L:Check(T("Invertir el barrido"), "gcdReverse"), on)
+	Dep(L:Check(T("Ocultar el barrido"), "gcdHideSweep"), on)
+	Dep(L:Slider(T("Opacidad del barrido"), "gcdAlpha", 0, 1, 0.05, "%.2f"), function() return SP.cfg.gcd and not SP.cfg.gcdHideSweep end)
+	Dep(L:Button(T("Probar en mi target (15 s)"), function() if SP.TestGCD then SP.TestGCD() end end), on)
 end
 
 -- Lista de totems: modo (icono / oculto / placa) e icono propio de cada uno
@@ -425,20 +681,20 @@ local function TotemCfg(id)
 	return t
 end
 
-local function BuildTotems(p)
-	MakeCheck(p, 5, -2, T("Totems como icono"), "totemIcons")
-	MakeCheck(p, 5, -28, T("Ocultar totems aliados"), "totemHideFriendly")
-	MakeSlider(p, 250, -20, T("Tamano icono totem"), "totemSize", 12, 48, 1)
-
-	local hdr = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	hdr:SetPoint("TOPLEFT", 8, -60)
-	hdr:SetText(T("Totem                                              Modo             Icono propio (ruta o ID de hechizo + Enter)"))
+-- Seccion sin desplazamiento propio: la lista de totems tiene su scroll
+local function BuildTotemsPage(L)
+	L:Header(T("Totems"))
+	L:Check(T("Totems como icono"), "totemIcons")
+	Dep(L:Slider(T("Tamano icono totem"), "totemSize", 12, 48, 1), On("totemIcons"))
+	Dep(L:Check(T("Ocultar totems aliados"), "totemHideFriendly"), On("totemIcons"))
+	L:Header(T("Totem                                              Modo             Icono propio (ruta o ID de hechizo + Enter)"))
+	local p = L.page
 
 	local sf = CreateFrame("ScrollFrame", UName(), p, "UIPanelScrollFrameTemplate")
-	sf:SetPoint("TOPLEFT", 4, -76)
-	sf:SetPoint("BOTTOMRIGHT", -26, 0)
+	sf:SetPoint("TOPLEFT", 8, L.y - 2)
+	sf:SetPoint("BOTTOMRIGHT", -28, 8)
 	local list = CreateFrame("Frame", nil, sf)
-	list:SetWidth(430)
+	list:SetWidth(470)
 	sf:SetScrollChild(list)
 
 	local y = 0
@@ -448,7 +704,7 @@ local function BuildTotems(p)
 			local spellName = GetSpellInfo(id)
 			if spellName then
 				local row = CreateFrame("Frame", nil, list)
-				row:SetWidth(430)
+				row:SetWidth(470)
 				row:SetHeight(24)
 				row:SetPoint("TOPLEFT", 0, -y)
 				y = y + 26
@@ -456,25 +712,23 @@ local function BuildTotems(p)
 				local ico = row:CreateTexture(nil, "ARTWORK")
 				ico:SetWidth(20)
 				ico:SetHeight(20)
-				ico:SetPoint("LEFT", 2, 0)
+				ico:SetPoint("LEFT", 4, 0)
 				ico:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
 				local fs = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-				fs:SetPoint("LEFT", 28, 0)
+				fs:SetPoint("LEFT", 30, 0)
 				fs:SetWidth(150)
 				fs:SetJustifyH("LEFT")
 				fs:SetText(spellName)
 				fs:SetTextColor(col[1], col[2], col[3])
 
-				local btn = CreateFrame("Button", UName(), row, "UIPanelButtonTemplate")
-				btn:SetWidth(72)
-				btn:SetHeight(20)
-				btn:SetPoint("LEFT", 182, 0)
+				local btn = FlatButton(row, 72, 20, "")
+				btn:SetPoint("LEFT", 184, 0)
 
 				local eb = CreateFrame("EditBox", UName(), row, "InputBoxTemplate")
-				eb:SetWidth(160)
+				eb:SetWidth(180)
 				eb:SetHeight(20)
-				eb:SetPoint("LEFT", 266, 0)
+				eb:SetPoint("LEFT", 270, 0)
 				eb:SetAutoFocus(false)
 				eb:SetFontObject("GameFontHighlightSmall")
 
@@ -483,8 +737,7 @@ local function BuildTotems(p)
 					local m = (t and t.mode) or 1
 					local md = MODES[m]
 					btn:SetText(T(md[1]))
-					local bt = btn:GetFontString()
-					if bt then bt:SetTextColor(md[2], md[3], md[4]) end
+					btn.text:SetTextColor(md[2], md[3], md[4])
 					eb:SetText((t and t.icon) or "")
 					eb:SetCursorPosition(0)
 					ico:SetTexture(SP.TotemTexture(id))
@@ -508,41 +761,6 @@ local function BuildTotems(p)
 		end
 	end
 	list:SetHeight(math.max(y, 1))
-end
-
--- Debuffs importantes (integrados desde la WeakAura)
-local CAT_LABELS = {
-	immunities = "Inmunidades", cc = "Control (CC)", silence = "Silencios", roots = "Raices",
-	disarms = "Desarmes", defensives = "Defensivos", offensives = "Ofensivos", others = "Otros",
-}
-
-local function DebuffPosOptions()
-	return { { T("A la derecha"), "right" }, { T("A la izquierda"), "left" } }
-end
-
-local function BuildDebuffs(p)
-	MakeCheck(p, 5, -2, T("Mostrar debuffs importantes"), "debuffs")
-	MakeCheck(p, 5, -28, T("Solo en enemigos"), "debuffEnemyOnly")
-	MakeCheck(p, 5, -54, T("Solo en arena"), "debuffArenaOnly")
-	MakeCheck(p, 5, -80, T("Tiempo restante en el icono"), "debuffTimer")
-	MakeSlider(p, 10, -126, T("Tamano del icono"), "debuffSize", 16, 60, 1)
-	MakeDropdown(p, 10, -176, T("Posicion"), "debuffPos", DebuffPosOptions)
-
-	local h = p:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	h:SetPoint("TOPLEFT", 250, -2)
-	h:SetText(T("Categorias (por prioridad)"))
-	for i, cat in ipairs(SP.DEBUFF_CATS or {}) do
-		local cb = CreateFrame("CheckButton", UName(), p, "InterfaceOptionsCheckButtonTemplate")
-		cb:SetPoint("TOPLEFT", 245, -18 - (i - 1) * 26)
-		_G[cb:GetName() .. "Text"]:SetText(i .. ". " .. T(CAT_LABELS[cat] or cat))
-		cb:SetScript("OnClick", function(self)
-			SP.cfg.debuffCats[cat] = self:GetChecked() and true or false
-			Apply()
-		end)
-		function cb:Refresh() self:SetChecked(SP.cfg.debuffCats[cat] ~= false) end
-		widgets[#widgets + 1] = cb
-	end
-	MakeCheck(p, 245, -232, T("Bloqueos de interrupcion (Pummel, Kick...)"), "debuffLockouts")
 end
 
 ------------------------------ PERFILES ----------------------------
@@ -692,16 +910,12 @@ function SP.ShowProfiles()
 		f:RegisterForDrag("LeftButton")
 		f:SetScript("OnDragStart", f.StartMoving)
 		f:SetScript("OnDragStop", f.StopMovingOrSizing)
-		f:SetBackdrop({
-			bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-			edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-			tile = true, tileSize = 32, edgeSize = 32,
-			insets = { left = 8, right = 8, top = 8, bottom = 8 },
-		})
+		Skin(f)
 		tinsert(UISpecialFrames, "HemsworkPlatesProfiles")
 
 		local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-		title:SetPoint("TOP", 0, -16)
+		title:SetPoint("TOP", 0, -14)
+		title:SetTextColor(ACCENT[1], ACCENT[2], ACCENT[3])
 		title:SetText(T("Perfiles: importar / exportar"))
 		local help = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 		help:SetPoint("TOP", 0, -38)
@@ -734,11 +948,8 @@ function SP.ShowProfiles()
 		f.status = status
 
 		local function Btn(text, x, onClick)
-			local b = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-			b:SetWidth(110)
-			b:SetHeight(22)
+			local b = FlatButton(f, 110, 22, text)
 			b:SetPoint("BOTTOMLEFT", x, 12)
-			b:SetText(text)
 			b:SetScript("OnClick", onClick)
 		end
 		Btn(T("Exportar"), 20, function()
@@ -753,7 +964,7 @@ function SP.ShowProfiles()
 			if ok then
 				Apply()
 				for _, w in ipairs(widgets) do w:Refresh() end
-				UpdateClassicState()
+				UpdateDeps()
 				status:SetTextColor(0.3, 1, 0.3)
 				status:SetText(T("Perfil importado y aplicado"))
 			else
@@ -769,118 +980,171 @@ function SP.ShowProfiles()
 	profFrame:Show()
 end
 
--- GCD de los enemigos de arena (integrado desde NameplateArenaGCDs)
-local function GCDPosOptions()
-	return { { T("A la izquierda"), "left" }, { T("A la derecha"), "right" } }
+local function BuildProfilesPage(L)
+	L:Header(T("Perfiles"))
+	L:Note(T("Exporta tu configuracion como un texto para copiarla a otro personaje o cuenta, o importa la de otra persona."))
+	L:Button(T("Importar / exportar perfil"), function() SP.ShowProfiles() end)
+	L:EndRow()
+	L:Header(T("Restablecer"))
+	L:Note(T("Vuelve todas las opciones a sus valores por defecto."))
+	L:Button(T("Restablecer todo"), function()
+		SP.Reset()
+		for _, w in ipairs(widgets) do w:Refresh() end
+		UpdateDeps()
+	end)
 end
 
-local function BuildGCD(p)
-	MakeCheck(p, 5, -2, T("Mostrar GCD de enemigos de arena"), "gcd")
-	MakeCheck(p, 5, -28, T("Tiempo restante en el icono"), "gcdTimer")
-	MakeCheck(p, 5, -54, T("Invertir el barrido"), "gcdReverse")
-	MakeCheck(p, 5, -80, T("Ocultar el barrido"), "gcdHideSweep")
-	MakeSlider(p, 10, -126, T("Tamano del icono"), "gcdSize", 14, 64, 1)
-	MakeSlider(p, 10, -172, T("Opacidad del barrido"), "gcdAlpha", 0, 1, 0.05, "%.2f")
+local SECTIONS = {
+	{ "Aspecto", BuildLook },
+	{ "Castbar", BuildCast },
+	{ "Texto", BuildTextPage },
+	{ "Colores", BuildColorsPage },
+	{ "Resaltado", BuildHighlight },
+	{ "Arena", BuildArena },
+	{ "Debuffs", BuildDebuffsPage },
+	{ "GCD", BuildGCDPage },
+	{ "Totems", BuildTotemsPage, true }, -- true = sin desplazamiento (la lista tiene el suyo)
+	{ "Perfiles", BuildProfilesPage },
+}
 
-	MakeDropdown(p, 250, -24, T("Posicion"), "gcdPos", GCDPosOptions)
-
-	local test = CreateFrame("Button", nil, p, "UIPanelButtonTemplate")
-	test:SetWidth(190)
-	test:SetHeight(22)
-	test:SetPoint("TOPLEFT", 250, -64)
-	test:SetText(T("Probar en mi target (15 s)"))
-	test:SetScript("OnClick", function() if SP.TestGCD then SP.TestGCD() end end)
-
-	local note = p:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-	note:SetPoint("TOPLEFT", 250, -96)
-	note:SetWidth(200)
-	note:SetJustifyH("LEFT")
-	note:SetText(T("Muestra el ultimo hechizo de cada rival de arena con un barrido que dura su GCD (clase, haste y procs instantaneos). Basado en NameplateArenaGCDs."))
-end
+local SIDE_W, W, H = 150, 720, 520
 
 local function BuildFrame()
 	frame = CreateFrame("Frame", "HemsworkPlatesConfig", UIParent)
-	frame:SetWidth(560)
-	frame:SetHeight(540)
+	frame:SetWidth(W)
+	frame:SetHeight(H)
 	frame:SetPoint("CENTER")
 	frame:SetFrameStrata("DIALOG")
+	frame:SetToplevel(true)
 	frame:SetMovable(true)
+	frame:SetClampedToScreen(true)
 	frame:EnableMouse(true)
-	frame:RegisterForDrag("LeftButton")
-	frame:SetScript("OnDragStart", frame.StartMoving)
-	frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-	frame:SetBackdrop({
-		bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-		edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-		tile = true, tileSize = 32, edgeSize = 32,
-		insets = { left = 8, right = 8, top = 8, bottom = 8 },
-	})
+	Skin(frame)
 	tinsert(UISpecialFrames, "HemsworkPlatesConfig")
 
-	local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-	title:SetPoint("TOP", 0, -16)
-	title:SetText("HemsworkPlates")
+	-- Barra de titulo (se arrastra desde aqui)
+	local bar = CreateFrame("Frame", nil, frame)
+	bar:SetPoint("TOPLEFT", 1, -1)
+	bar:SetPoint("TOPRIGHT", -1, -1)
+	bar:SetHeight(30)
+	local barBg = bar:CreateTexture(nil, "BACKGROUND")
+	barBg:SetAllPoints()
+	barBg:SetTexture(0.03, 0.03, 0.035, 1)
+	local accent = bar:CreateTexture(nil, "ARTWORK")
+	accent:SetPoint("BOTTOMLEFT")
+	accent:SetPoint("BOTTOMRIGHT")
+	accent:SetHeight(1)
+	accent:SetTexture(ACCENT[1], ACCENT[2], ACCENT[3], 0.8)
+	bar:EnableMouse(true)
+	bar:RegisterForDrag("LeftButton")
+	bar:SetScript("OnDragStart", function() frame:StartMoving() end)
+	bar:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
 
-	local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-	close:SetPoint("TOPRIGHT", -6, -6)
-
-	local panels, tabs = {}, {}
-	local defs = {
-		{ T("General"), BuildGeneral },
-		{ T("Texto"), BuildText },
-		{ T("Colores"), BuildColors },
-		{ T("Extras"), BuildExtras },
-		{ "PvP", BuildPvP },
-		{ T("Totems"), BuildTotems },
-		{ T("Debuffs"), BuildDebuffs },
-		{ "GCD", BuildGCD },
-	}
-	local function Select(i)
-		for j, pnl in ipairs(panels) do
-			if j == i then pnl:Show(); tabs[j]:Disable() else pnl:Hide(); tabs[j]:Enable() end
-		end
-	end
-	for i, d in ipairs(defs) do
-		local t = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-		t:SetWidth(60)
-		t:SetHeight(22)
-		t:SetPoint("TOPLEFT", 20 + (i - 1) * 64, -44)
-		t:SetText(d[1])
-		t:SetScript("OnClick", function() Select(i) end)
-		tabs[i] = t
-
-		local pnl = CreateFrame("Frame", nil, frame)
-		pnl:SetPoint("TOPLEFT", 16, -74)
-		pnl:SetPoint("BOTTOMRIGHT", -16, 44)
-		panels[i] = pnl
-		d[2](pnl)
-	end
-
-	local reset = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-	reset:SetWidth(130)
-	reset:SetHeight(22)
-	reset:SetPoint("BOTTOMLEFT", 20, 16)
-	reset:SetText(T("Restablecer todo"))
-	reset:SetScript("OnClick", function()
-		SP.Reset()
-		for _, w in ipairs(widgets) do w:Refresh() end
-		UpdateClassicState()
-	end)
-
-	local prof = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-	prof:SetWidth(110)
-	prof:SetHeight(22)
-	prof:SetPoint("BOTTOMLEFT", 156, 16)
-	prof:SetText(T("Perfiles"))
-	prof:SetScript("OnClick", function() SP.ShowProfiles() end)
-
-	local hint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-	hint:SetPoint("BOTTOMRIGHT", -22, 20)
+	local title = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+	title:SetPoint("LEFT", 12, 0)
+	title:SetText("Hemswork|cffffffffPlates|r")
+	title:SetTextColor(ACCENT[1], ACCENT[2], ACCENT[3])
+	local ver = bar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	ver:SetPoint("LEFT", title, "RIGHT", 8, -1)
+	ver:SetText((GetAddOnMetadata and GetAddOnMetadata(addonName, "Version")) or "")
+	local hint = bar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	hint:SetPoint("RIGHT", -36, 0)
 	hint:SetText(T("Cambios en vivo"))
+
+	local close = CreateFrame("Button", nil, bar, "UIPanelCloseButton")
+	close:SetPoint("RIGHT", 2, 0)
+	close:SetScript("OnClick", function() frame:Hide() end)
+
+	-- Menu lateral
+	local side = CreateFrame("Frame", nil, frame)
+	side:SetPoint("TOPLEFT", 1, -31)
+	side:SetPoint("BOTTOMLEFT", 1, 1)
+	side:SetWidth(SIDE_W)
+	local sideBg = side:CreateTexture(nil, "BACKGROUND")
+	sideBg:SetAllPoints()
+	sideBg:SetTexture(0.045, 0.045, 0.05, 1)
+	local sideLine = side:CreateTexture(nil, "ARTWORK")
+	sideLine:SetPoint("TOPRIGHT")
+	sideLine:SetPoint("BOTTOMRIGHT")
+	sideLine:SetWidth(1)
+	sideLine:SetTexture(EDGE[1], EDGE[2], EDGE[3], 1)
+
+	-- Zona de contenido
+	local content = CreateFrame("Frame", nil, frame)
+	content:SetPoint("TOPLEFT", SIDE_W + 2, -32)
+	content:SetPoint("BOTTOMRIGHT", -2, 2)
+
+	local pages, buttons = {}, {}
+	local function Select(i)
+		for j, pg in ipairs(pages) do
+			local b = buttons[j]
+			if j == i then
+				pg:Show()
+				b.mark:Show()
+				b.bg:SetTexture(1, 1, 1, 0.07)
+				b.text:SetTextColor(ACCENT[1], ACCENT[2], ACCENT[3])
+			else
+				pg:Hide()
+				b.mark:Hide()
+				b.bg:SetTexture(0, 0, 0, 0)
+				b.text:SetTextColor(0.85, 0.85, 0.85)
+			end
+		end
+		frame.selected = i
+	end
+
+	for i, def in ipairs(SECTIONS) do
+		local b = CreateFrame("Button", nil, side)
+		b:SetHeight(28)
+		b:SetPoint("TOPLEFT", 0, -8 - (i - 1) * 30)
+		b:SetPoint("TOPRIGHT", -1, -8 - (i - 1) * 30)
+		b.bg = b:CreateTexture(nil, "BACKGROUND")
+		b.bg:SetAllPoints()
+		b.mark = b:CreateTexture(nil, "ARTWORK")
+		b.mark:SetPoint("TOPLEFT")
+		b.mark:SetPoint("BOTTOMLEFT")
+		b.mark:SetWidth(3)
+		b.mark:SetTexture(ACCENT[1], ACCENT[2], ACCENT[3], 1)
+		b.text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+		b.text:SetPoint("LEFT", 16, 0)
+		b.text:SetText(T(def[1]))
+		local hl = b:CreateTexture(nil, "HIGHLIGHT")
+		hl:SetAllPoints()
+		hl:SetTexture(1, 1, 1, 0.05)
+		b:SetScript("OnClick", function() Select(i) end)
+		buttons[i] = b
+
+		-- Pagina: con desplazamiento (salvo Totems, que lleva su propia lista)
+		local pg = CreateFrame("Frame", nil, content)
+		pg:SetAllPoints(content)
+		local page
+		if def[3] then
+			page = pg
+			def[2](NewLayout(page))
+		else
+			local sf = CreateFrame("ScrollFrame", UName(), pg, "UIPanelScrollFrameTemplate")
+			sf:SetPoint("TOPLEFT", 0, -4)
+			sf:SetPoint("BOTTOMRIGHT", -26, 4)
+			page = CreateFrame("Frame", nil, sf)
+			page:SetWidth(W - SIDE_W - 30)
+			sf:SetScrollChild(page)
+			local L = NewLayout(page)
+			def[2](L)
+			page:SetHeight(L:Height())
+			-- Sin barra de scroll si todo cabe
+			local bar = _G[sf:GetName() .. "ScrollBar"]
+			sf:SetScript("OnShow", function()
+				if bar then
+					if page:GetHeight() <= sf:GetHeight() then bar:Hide() else bar:Show() end
+				end
+			end)
+		end
+		pages[i] = pg
+	end
 
 	frame:SetScript("OnShow", function()
 		for _, w in ipairs(widgets) do w:Refresh() end
-		UpdateClassicState()
+		UpdateDeps()
 	end)
 	Select(1)
 	-- Un frame nuevo nace visible: se oculta para que el primer /hms lo abra
