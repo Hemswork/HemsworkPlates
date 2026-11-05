@@ -43,7 +43,6 @@ Classic Blizzard look, pixel-perfect bars, castbars for every arena opponent, im
 **PvP and utilities**
 - **Arena numbers** (1–5) next to the bar or replacing the name; red for enemies, green for your team.
 - **Totems as icons**, configurable one by one (icon, hidden, normal plate or icon + plate, custom icon).
-- **Stealthed opponents** (arena only, while you have the Shadow Sight eye): on-screen alert with their name, and a raid marker when the server allows it.
 - **Mage Mirror Images** no longer steal the mage's castbar.
 - **Friendly plates with name only**, configurable per zone.
 - Bigger target plate, smaller friendly plates, and the target plate kept inside the screen.
@@ -75,7 +74,6 @@ Classic Blizzard look, pixel-perfect bars, castbars for every arena opponent, im
 | `/hms gcd` | Test the arena GCD icon on your target |
 | `/hms reset` | Reset all settings to defaults |
 | `/hms perf` | Show performance stats (`/hms perf reset` to restart) |
-| `/hms sigilo` | Stealth diagnostics (what the addon detects right now) |
 
 ### Credits
 
@@ -123,7 +121,6 @@ Aspecto clásico de Blizzard, barras pixel-perfect, castbar de todos los rivales
 **PvP y utilidades**
 - **Números de arena** (1–5) junto a la barra o en lugar del nombre; rojo para enemigos y verde para tu equipo.
 - **Tótems como icono**, configurables uno a uno (icono, oculto, placa normal o icono + placa, icono propio).
-- **Rivales en sigilo** (solo arena, cuando tienes el ojo): aviso en pantalla con su nombre, y marca de banda cuando el servidor lo permite.
 - Las **imágenes del mago** (Mirror Image) ya no se quedan con su castbar.
 - **Aliados solo con nombre**, configurable por zona.
 - Placa del target más grande, aliados más pequeños y la placa del target siempre dentro de la pantalla.
@@ -155,7 +152,6 @@ Aspecto clásico de Blizzard, barras pixel-perfect, castbar de todos los rivales
 | `/hms gcd` | Prueba el icono de GCD de arena en tu target |
 | `/hms reset` | Restablece toda la configuración |
 | `/hms perf` | Muestra el rendimiento del addon (`/hms perf reset` para reiniciar) |
-| `/hms sigilo` | Diagnóstico del sigilo (lo que detecta el addon ahora mismo) |
 
 ### Créditos
 

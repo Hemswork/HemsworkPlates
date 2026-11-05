@@ -297,34 +297,6 @@ local EN = {
 	["Pummel, Shield Bash, Kick, etc. no dejan aura: se detectan en el registro de combate y se muestran como silencio."] =
 		"Pummel, Shield Bash, Kick, etc. leave no aura: they are detected from the combat log and shown as silences.",
 
-	-- Sigilo
-	["Sigilo"] = "Stealth",
-	["Rivales en sigilo"] = "Stealthed opponents",
-	["Solo en arena, cuando tienes el ojo (Shadow Sight) y un rival esta en sigilo (picaro, druida...)."] =
-		"Arena only, while you have the eye (Shadow Sight) and an opponent is stealthed (rogue, druid...).",
-	["Marcar rivales en sigilo"] = "Mark stealthed opponents",
-	["Les pone una marca de banda que el juego dibuja sobre su cabeza, para verlos aunque no tengan placa. Se quita al salir del sigilo."] =
-		"Puts a raid marker on them, drawn by the game above their head, so you can see them without a nameplate. Removed when they leave stealth.",
-	["Aviso en pantalla"] = "On-screen alert",
-	["Muestra arriba de la pantalla quien esta en sigilo y con que marca."] = "Shows at the top of the screen who is stealthed and with which marker.",
-	["Tamano del aviso"] = "Alert size",
-	["Probar aviso (5 s)"] = "Test alert (5 s)",
-	["Marca de cada rival"] = "Marker for each opponent",
-	["El tamano de la marca sobre el personaje lo decide el juego y no se puede cambiar."] =
-		"The size of the marker above the character is set by the game and cannot be changed.",
-	["Marca de arena%d"] = "Marker for arena%d",
-	["Ninguna"] = "None",
-	["Estrella"] = "Star",
-	["Circulo"] = "Circle",
-	["Diamante"] = "Diamond",
-	["Triangulo"] = "Triangle",
-	["Luna"] = "Moon",
-	["Cuadrado"] = "Square",
-	["Cruz"] = "Cross",
-	["Calavera"] = "Skull",
-	["en sigilo"] = "stealthed",
-	["Rival de prueba"] = "Test opponent",
-
 	-- Mensajes del chat
 	["|cff66ccffHemsworkPlates|r cargado: version %s (Warmane, sin Awesome WotLK)"] =
 		"|cff66ccffHemsworkPlates|r loaded: version %s (Warmane, no Awesome WotLK)",

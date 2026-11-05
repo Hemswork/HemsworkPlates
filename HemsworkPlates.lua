@@ -82,9 +82,6 @@ local defaults = {
 	-- GCD de los enemigos de arena (antes NameplateArenaGCDs)
 	gcd = true, gcdSize = 27, gcdWidth = 27, gcdHeight = 27, gcdPos = "left", gcdX = 0, gcdY = 0,
 	gcdTimer = true, gcdReverse = false, gcdHideSweep = false, gcdAlpha = 1,
-	-- Rivales en sigilo (solo arena y con el ojo): marca de banda y aviso en pantalla
-	stealthMark = true, stealthAlert = true, stealthAlertSize = 28,
-	stealthIcons = { 8, 7, 4, 2, 3 }, -- marca para arena1..arena5 (0 = ninguna)
 	debuffSize = 30, debuffWidth = 30, debuffHeight = 30, debuffPos = "right", debuffX = 0, debuffY = 0,
 	debuffCats = {
 		immunities = true, cc = true, silence = true, roots = true,
@@ -1922,6 +1919,9 @@ function OnEvent(self, event, arg1)
 		HemsworkPlatesDB = HemsworkPlatesDB or {}
 		local hadIconWH = HemsworkPlatesDB.debuffWidth ~= nil
 		Merge(HemsworkPlatesDB, defaults)
+		-- La 1.2.0 tenia avisos de sigilo: se quitan sus opciones guardadas
+		HemsworkPlatesDB.stealthMark, HemsworkPlatesDB.stealthAlert = nil, nil
+		HemsworkPlatesDB.stealthAlertSize, HemsworkPlatesDB.stealthIcons = nil, nil
 		cfg = HemsworkPlatesDB
 		if not hadIconWH then
 			-- Antes un solo tamano (cuadrado): ancho y alto parten de ese valor
@@ -2167,8 +2167,6 @@ function SlashHandler(msg)
 		print(T("HemsworkPlates: geometria borrada, se volvera a medir tras /reload."))
 	elseif msg == "perfil" or msg == "perfiles" or msg == "export" or msg == "import" then
 		if SP.ShowProfiles then SP.ShowProfiles() end
-	elseif msg == "sigilo" or msg == "stealth" then
-		if SP.StealthDebug then SP.StealthDebug() end
 	elseif msg == "gcd" or msg == "gcd test" then
 		if SP.TestGCD then SP.TestGCD() end
 	elseif msg == "reset" then

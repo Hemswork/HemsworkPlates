@@ -2,7 +2,7 @@
 ## Title: HemsworkPlates
 ## Notes: Nameplates estilo WotLK Classic para arenas (version Warmane, no requiere Awesome WotLK). Opciones: /hms
 ## Author: Hemswork
-## Version: 1.2.0
+## Version: 1.2.1
 ## SavedVariables: HemsworkPlatesDB
 ## OptionalDeps: LibSharedMedia-3.0
 
@@ -13,5 +13,4 @@ Debuffs.lua
 GCDSpells.lua
 GCDBuffs.lua
 GCD.lua
-Stealth.lua
 Config.lua

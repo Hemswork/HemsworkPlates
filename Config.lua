@@ -22,7 +22,6 @@ local function Apply()
 		lastLanguage = SP.cfg.language
 	end
 	SP.Refresh()
-	if SP.LayoutStealth then SP.LayoutStealth() end
 	UpdateDeps()
 end
 
@@ -1391,51 +1390,6 @@ function SP.ShowProfiles()
 	profFrame:Show()
 end
 
--- Rivales en sigilo (solo arena, con el ojo)
-local RAID_ICON_NAMES = { "Estrella", "Circulo", "Diamante", "Triangulo", "Luna", "Cuadrado", "Cruz", "Calavera" }
-local function RaidIconOptions()
-	local o = { { T("Ninguna"), 0 } }
-	for i = 1, 8 do
-		o[#o + 1] = { "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_" .. i .. ":14|t " .. T(RAID_ICON_NAMES[i]), i }
-	end
-	return o
-end
-
--- Las marcas son una tabla (una por rival): controles propios
-local function StealthIconDropdown(L, i)
-	local x, y = L:Next("dropdown")
-	local key = "stealthIcon" .. i
-	local b = MakeDropdown(L.page, x, y, string.format(T("Marca de arena%d"), i), key, RaidIconOptions)
-	function b:Refresh()
-		local cur = SP.cfg.stealthIcons[i] or 0
-		for _, o in ipairs(RaidIconOptions()) do
-			if o[2] == cur then self:SetText(o[1]) end
-		end
-	end
-	b:SetScript("OnClick", function(self)
-		ShowList(self, RaidIconOptions(), SP.cfg.stealthIcons[i] or 0, function(o)
-			SP.cfg.stealthIcons[i] = o[2]
-			self:Refresh()
-			Apply()
-		end)
-	end)
-	return b
-end
-
-local function BuildStealthPage(L)
-	L:Header(T("Rivales en sigilo"))
-	L:Note(T("Solo en arena, cuando tienes el ojo (Shadow Sight) y un rival esta en sigilo (picaro, druida...)."))
-	L:Check(T("Marcar rivales en sigilo"), "stealthMark",
-		"Les pone una marca de banda que el juego dibuja sobre su cabeza, para verlos aunque no tengan placa. Se quita al salir del sigilo.")
-	L:Check(T("Aviso en pantalla"), "stealthAlert", "Muestra arriba de la pantalla quien esta en sigilo y con que marca.")
-	Dep(L:Slider(T("Tamano del aviso"), "stealthAlertSize", 16, 64, 1), On("stealthAlert"))
-	Dep(L:Button(T("Probar aviso (5 s)"), function() if SP.TestStealth then SP.TestStealth() end end), On("stealthAlert"))
-
-	L:Header(T("Marca de cada rival"))
-	L:Note(T("El tamano de la marca sobre el personaje lo decide el juego y no se puede cambiar."))
-	for i = 1, 5 do Dep(StealthIconDropdown(L, i), On("stealthMark")) end
-end
-
 local function BuildProfilesPage(L)
 	L:Header(T("Perfiles"))
 	L:Note(T("Exporta tu configuracion como un texto para copiarla a otro personaje o cuenta, o importa la de otra persona."))
@@ -1460,7 +1414,6 @@ local SECTIONS = {
 	{ "Debuffs", BuildDebuffsPage },
 	{ "Hechizos", BuildSpellsPage, true }, -- true = sin desplazamiento de pagina (la lista tiene el suyo)
 	{ "GCD", BuildGCDPage },
-	{ "Sigilo", BuildStealthPage },
 	{ "Totems", BuildTotemsPage, true }, -- true = sin desplazamiento (la lista tiene el suyo)
 	{ "Perfiles", BuildProfilesPage },
 }
