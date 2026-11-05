@@ -297,14 +297,47 @@ local DEBUFF_SPELLS = {
 local CAT_ORDER = { "immunities", "cc", "silence", "roots", "disarms", "defensives", "offensives", "others" }
 SP.DEBUFF_CATS = CAT_ORDER
 
--- Tabla plana spellID -> { indice de categoria, prioridad, categoria }
-local LOOKUP = {}
-for ci, cat in ipairs(CAT_ORDER) do
+-- Lista base: spellID -> { cat, pri, name } (la que se puede editar en /hms > Hechizos)
+local CAT_INDEX = {}
+for i, cat in ipairs(CAT_ORDER) do CAT_INDEX[cat] = i end
+local BASE = {}
+for _, cat in ipairs(CAT_ORDER) do
 	for id, d in pairs(DEBUFF_SPELLS[cat]) do
-		LOOKUP[id] = { ci, d.priority, cat }
+		BASE[id] = { cat = cat, pri = d.priority, name = d.name }
 	end
 end
 DEBUFF_SPELLS = nil
+SP.DEBUFF_BASE = BASE
+
+-- Tabla plana spellID -> { indice de categoria, prioridad, categoria }. Se rehace
+-- cuando el usuario cambia algo (hechizos quitados, categorias, prioridades o
+-- hechizos propios): cfg.spellOverrides[id] = { off, cat, pri }, cfg.customSpells[id] = { cat, pri }
+local LOOKUP = {}
+local lookupVer
+SP.debuffVer = 0
+function SP.DebuffsChanged() SP.debuffVer = SP.debuffVer + 1 end
+
+local function RebuildLookup(cfg)
+	lookupVer = SP.debuffVer
+	LOOKUP = {}
+	for id, b in pairs(BASE) do LOOKUP[id] = { CAT_INDEX[b.cat], b.pri, b.cat } end
+	for id, c in pairs(cfg.customSpells or {}) do
+		local ci = CAT_INDEX[c.cat]
+		if ci then LOOKUP[id] = { ci, tonumber(c.pri) or 50, c.cat } end
+	end
+	for id, o in pairs(cfg.spellOverrides or {}) do
+		if o.off then
+			LOOKUP[id] = nil
+		else
+			local l = LOOKUP[id]
+			if l then
+				if tonumber(o.pri) then l[2] = o.pri end
+				local ci = o.cat and CAT_INDEX[o.cat]
+				if ci then l[1], l[3] = ci, o.cat end
+			end
+		end
+	end
+end
 
 -- Bloqueos de escuela por interrupcion: Pummel, Shield Bash, Kick, etc. no
 -- dejan aura en el objetivo, asi que se detectan con SPELL_INTERRUPT del
@@ -338,6 +371,7 @@ end
 
 -- Aura ganadora de la unidad (debuffs y buffs, como la WeakAura)
 local function Best(unit, cfg)
+	if lookupVer ~= SP.debuffVer then RebuildLookup(cfg) end
 	local now = GetTime()
 	local bCi, bPri, bRem, bIcon, bDur, bExp
 	local guid = UnitGUID(unit)
@@ -473,25 +507,22 @@ end
 -- Tamano y posicion (lo llama Restyle)
 -- Pega un icono a la izquierda o a la derecha de la barra, centrado en vertical
 -- con ella. "inner" = otro icono del mismo lado: se coloca justo por fuera.
-function SP.PlaceSideIcon(f, sp, side, fs, px, inner)
+function SP.PlaceSideIcon(f, sp, side, fs, px, innerW, dx, dy)
 	local function snap(v) return px and math.floor(v / px + 0.5) * px or v end
 	local cfg = SP.cfg
+	dx, dy = tonumber(dx) or 0, tonumber(dy) or 0
 	f:ClearAllPoints()
-	if inner then
-		if side == "left" then
-			f:SetPoint("RIGHT", inner, "LEFT", -snap(4), 0)
-		else
-			f:SetPoint("LEFT", inner, "RIGHT", snap(4), 0)
-		end
-	elseif side == "left" then
+	-- innerW = ancho del otro icono del mismo lado: este se coloca justo por fuera
+	local extra = innerW and (innerW + 4) or 0
+	if side == "left" then
 		-- Deja sitio al numero de arena si va a la izquierda de la barra
 		local clear = (cfg.arenaIDs and cfg.arenaIDPos ~= "name") and (fs + 10) or 4
-		f:SetPoint("RIGHT", sp, "LEFT", -snap(clear), 0)
+		f:SetPoint("RIGHT", sp, "LEFT", -snap(clear + extra) + snap(dx), snap(dy))
 	else
 		-- Deja sitio al nivel (en el estilo Antiguo, a la cajita del marco dorado)
 		local clear = fs * 1.6 + 8
 		if cfg.shape == "old" then clear = 21.1 * sp:GetWidth() / 102.91 + 4 end
-		f:SetPoint("LEFT", sp, "RIGHT", snap(clear), 0)
+		f:SetPoint("LEFT", sp, "RIGHT", snap(clear + extra) + snap(dx), snap(dy))
 	end
 end
 
@@ -499,17 +530,17 @@ function SP.LayoutDebuff(sp, px, fs)
 	local f, cfg = sp.debuff, SP.cfg
 	if not f then return end
 	local function snap(v) return px and math.floor(v / px + 0.5) * px or v end
-	local size = math.max(px or 1, snap(cfg.debuffSize))
-	f:SetWidth(size)
-	f:SetHeight(size)
-	local one = px and math.max(px, snap(1)) or 1
-	f.edge:ClearAllPoints()
-	f.edge:SetPoint("TOPLEFT", f, "TOPLEFT", -one, one)
-	f.edge:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", one, -one)
-	f.text:SetFont(cfg.font, math.max(6, math.floor(size * 0.38)), "OUTLINE")
+	local mn = px or 1
+	local w = math.max(mn, snap(tonumber(cfg.debuffWidth) or tonumber(cfg.debuffSize) or 30))
+	local h = math.max(mn, snap(tonumber(cfg.debuffHeight) or tonumber(cfg.debuffSize) or 30))
+	f:SetWidth(w)
+	f:SetHeight(h)
+	SP.CropIcon(f.icon, w, h)
+	SP.StyleIconBorder(f, f.icon, f.edge, w, px, h)
+	f.text:SetFont(cfg.font, math.max(6, math.floor(math.min(w, h) * 0.38)), "OUTLINE")
 	f.showTimer = cfg.debuffTimer
 	if cfg.debuffTimer then f.text:Show() else f.text:Hide() end
-	SP.PlaceSideIcon(f, sp, cfg.debuffPos == "left" and "left" or "right", fs, px)
+	SP.PlaceSideIcon(f, sp, cfg.debuffPos == "left" and "left" or "right", fs, px, nil, cfg.debuffX, cfg.debuffY)
 	f.lw, f.lh, f.lastP, f.lastS = 0, 0, -1, nil
 end
 

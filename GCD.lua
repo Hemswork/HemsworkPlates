@@ -274,20 +274,24 @@ function SP.LayoutGCD(sp, px, fs)
 	local f, cfg = sp.gcdFrame, SP.cfg
 	if not f then return end
 	local function snap(v) return px and floor(v / px + 0.5) * px or v end
-	local size = math.max(px or 1, snap(cfg.gcdSize))
-	f:SetWidth(size)
-	f:SetHeight(size)
-	local one = px and math.max(px, snap(1)) or 1
-	f.edge:ClearAllPoints()
-	f.edge:SetPoint("TOPLEFT", f, "TOPLEFT", -one, one)
-	f.edge:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", one, -one)
-	f.text:SetFont(cfg.font, math.max(6, floor(size * 0.4)), "OUTLINE")
+	local mn = px or 1
+	local w = math.max(mn, snap(tonumber(cfg.gcdWidth) or tonumber(cfg.gcdSize) or 27))
+	local h = math.max(mn, snap(tonumber(cfg.gcdHeight) or tonumber(cfg.gcdSize) or 27))
+	f:SetWidth(w)
+	f:SetHeight(h)
+	SP.CropIcon(f.icon, w, h)
+	SP.StyleIconBorder(f, f.icon, f.edge, w, px, h)
+	f.text:SetFont(cfg.font, math.max(6, floor(math.min(w, h) * 0.4)), "OUTLINE")
 	f.sweep:SetAlpha(cfg.gcdAlpha)
-	-- Si va del mismo lado que el icono de debuffs, se pega por fuera de el
+	-- Si va del mismo lado que el icono de debuffs, se pega por fuera de su sitio
+	-- base (sin seguir el movimiento X/Y del debuff: cada icono se mueve aparte)
 	local side = cfg.gcdPos == "right" and "right" or "left"
 	local dside = cfg.debuffPos == "left" and "left" or "right"
-	local inner = (cfg.debuffs and side == dside) and sp.debuff or nil
-	SP.PlaceSideIcon(f, sp, side, fs, px, inner)
+	local innerW
+	if cfg.debuffs and side == dside then
+		innerW = snap(tonumber(cfg.debuffWidth) or tonumber(cfg.debuffSize) or 30)
+	end
+	SP.PlaceSideIcon(f, sp, side, fs, px, innerW, cfg.gcdX, cfg.gcdY)
 	f.lastFrame, f.lastText, f.lastIcon = nil, nil, nil
 end
 

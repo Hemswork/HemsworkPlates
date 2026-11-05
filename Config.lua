@@ -22,6 +22,7 @@ local function Apply()
 		lastLanguage = SP.cfg.language
 	end
 	SP.Refresh()
+	if SP.LayoutStealth then SP.LayoutStealth() end
 	UpdateDeps()
 end
 
@@ -110,6 +111,11 @@ end
 -- Deslizador con casilla para escribir el valor exacto
 local function MakeSlider(parent, x, y, label, key, minV, maxV, step, fmt, tip)
 	fmt = fmt or "%d"
+	local pct = fmt == "pct" -- valor 0-1 mostrado como porcentaje
+	local function Disp(v)
+		if pct then return string.format("%d%%", math.floor(v * 100 + 0.5)) end
+		return string.format(fmt, v)
+	end
 	local name = UName()
 	local s = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
 	s:SetPoint("TOPLEFT", x + 2, y - 16)
@@ -141,25 +147,27 @@ local function MakeSlider(parent, x, y, label, key, minV, maxV, step, fmt, tip)
 	end
 	s:SetScript("OnValueChanged", function(self, v)
 		v = Quant(v)
-		if not box:HasFocus() then box:SetText(string.format(fmt, v)) end
+		if not box:HasFocus() then box:SetText(Disp(v)) end
 		if self.loading then return end
 		SP.cfg[key] = v
 		Apply()
 	end)
 	box:SetScript("OnEnterPressed", function(self)
-		local v = Quant(self:GetText())
+		local n = tonumber((string.gsub(self:GetText() or "", "%%", "")))
+		if n and pct then n = n / 100 end
+		local v = Quant(n)
 		self:ClearFocus()
 		s:SetValue(v)
-		self:SetText(string.format(fmt, v))
+		self:SetText(Disp(v))
 	end)
 	box:SetScript("OnEscapePressed", function(self)
 		self:ClearFocus()
-		self:SetText(string.format(fmt, SP.cfg[key] or minV))
+		self:SetText(Disp(SP.cfg[key] or minV))
 	end)
 	function s:Refresh()
 		self.loading = true
 		self:SetValue(SP.cfg[key])
-		box:SetText(string.format(fmt, Quant(SP.cfg[key])))
+		box:SetText(Disp(Quant(SP.cfg[key])))
 		self.loading = false
 	end
 	Tip(s, tip)
@@ -443,6 +451,10 @@ local function ShapeOptions()
 	return { { T("Clasico WotLK"), "classic" }, { T("Antiguo (Blizzard)"), "old" }, { T("Cuadrada"), "square" }, { T("Redonda"), "round" } }
 end
 
+local function IconBorderOptions()
+	return { { T("Blizzard (como BigDebuffs)"), "blizzard" }, { T("Plano (negro)"), "flat" } }
+end
+
 local function HealthFormatOptions()
 	return {
 		{ T("Porcentaje (85%)"), 1 }, { T("Porcentaje 1 dec. (85.3%)"), 2 }, { T("Actual (12.5k)"), 3 },
@@ -477,12 +489,20 @@ local function BuildLook(L)
 		"Ajusta tamanos y posiciones a pixeles exactos de tu pantalla para que los bordes se vean nitidos.")
 	Dep(L:Slider(T("Grosor del borde"), "borderSize", 0, 4, 0.5, "%.1f", "Solo en los estilos Cuadrada y Redonda."), NotClassic)
 
+	L:Header(T("Borde de los iconos"))
+	L:Dropdown(T("Estilo del borde de iconos"), "iconBorder", IconBorderOptions,
+		"Borde de los iconos de debuffs, GCD, interrupciones y cast. Blizzard = el mismo marco de BigDebuffs; Plano = solo una linea negra.")
+	Dep(L:Color(T("Tinte del borde de iconos"), "iconBorderTint",
+		"Es un tinte: blanco = marco original de Blizzard; gris oscuro o negro lo oscurece."), function() return SP.cfg.iconBorder ~= "flat" end)
+
 	L:Header(T("Tamano"))
 	L:Slider(T("Ancho"), "width", 60, 200, 1)
 	L:Slider(T("Alto de barra"), "height", 4, 24, 1)
 	L:Slider(T("Escala"), "scale", 0.5, 2, 0.05, "%.2f")
-	L:Slider(T("Opacidad sin target"), "nonTargetAlpha", 0.2, 1, 0.05, "%.2f",
-		"Opacidad de las placas que no son tu target (solo cuando tienes un target).")
+	L:Check(T("Modificar opacidad sin target"), "modNonTargetAlpha",
+		"Sustituye la opacidad del juego en las placas que no son tu target (solo cuando tienes un target). Desactivado: se usa la del juego.")
+	Dep(L:Slider(T("Opacidad sin target"), "nonTargetAlpha", 0, 0.99, 0.01, "pct",
+		"De 0% (invisibles) a 99% (casi sin transparencia). Puedes escribir el valor exacto."), On("modNonTargetAlpha"))
 
 	L:Header(T("Posicion"))
 	L:Slider(T("Mover horizontal (X)"), "offsetX", -100, 100, 1)
@@ -504,6 +524,8 @@ local function BuildCast(L)
 	Dep(L:Check(T("Nombre del hechizo en el cast"), "showCastText"), cast)
 	Dep(L:Check(T("Tiempo restante del cast"), "showCastTime"), cast)
 	Dep(L:Slider(T("Alto cast bar"), "castHeight", 4, 24, 1), cast)
+	Dep(L:Slider(T("Ancho cast bar"), "castWidth", -60, 120, 1, nil, "Ancho extra del castbar (se suma a la derecha). Con 0 queda el ancho original."), cast)
+	Dep(L:Slider(T("Mover cast bar arriba/abajo"), "castY", -40, 40, 1, nil, "Positivo sube el castbar, negativo lo baja. Con 0 queda en su posicion original."), cast)
 	Dep(L:Slider(T("Tamano texto del cast"), "castFontSize", 5, 16, 1), cast)
 	Dep(L:Slider(T("Tamano icono cast"), "castIconSize", 8, 30, 1, nil, "Solo en los estilos Cuadrada y Redonda."),
 		function() return SP.cfg.showCast and NotClassic() end)
@@ -534,6 +556,12 @@ local function BuildTextPage(L)
 	L:Check(T("Mostrar nivel"), "showLevel")
 	Dep(L:Slider(T("Mover nombre X"), "nameX", -60, 60, 1, nil, "Con 0 el nombre queda en el centro exacto de la barra."), On("showName"))
 	Dep(L:Slider(T("Mover nombre Y"), "nameY", -40, 40, 1), On("showName"))
+	Dep(L:Slider(T("Tamano del nivel"), "levelFontSize", 6, 30, 1, nil,
+		"Tamano de letra del nivel (el numero junto a la barra, por ejemplo 80)."), On("showLevel"))
+	Dep(L:Slider(T("Tamano de la calavera"), "bossIconSize", 8, 30, 1, nil,
+		"Calavera de Blizzard que sustituye al nivel ?? en jefes y elites sin nivel."), On("showLevel"))
+	Dep(L:Slider(T("Ancho del nombre"), "nameWidth", 50, 250, 1, nil,
+		"Ancho maximo del nombre: si no cabe se recorta con ... para que vaya siempre en una sola fila."), On("showName"))
 	Dep(L:Slider(T("Separacion del nivel"), "levelOffset", 0, 30, 1, nil, "Solo en los estilos Cuadrada y Redonda."),
 		function() return SP.cfg.showLevel and NotClassic() end)
 
@@ -568,8 +596,17 @@ local function BuildColorsPage(L)
 
 	L:Header(T("Barra"))
 	L:Color(T("Fondo de barra"), "bgColor")
+	L:Slider(T("Oscuridad del fondo de barra"), "bgAlpha", 0, 1, 0.01, "pct",
+		"Opacidad del interior de las barras (la parte vacia). 100% = fondo totalmente oscuro; baja el valor para verlo mas transparente.")
 	Dep(L:Color(T("Borde"), "borderColor", "Solo en los estilos Cuadrada y Redonda."), NotClassic)
 	Dep(L:Color(T("Borde del target"), "targetBorderColor", "Solo en los estilos Cuadrada y Redonda."), NotClassic)
+
+	L:Header(T("Tinte de borde"))
+	L:Note(T("Es un tinte, no un color normal: blanco deja el borde original; gris oscuro o negro lo oscurece."))
+	Dep(L:Color(T("Tinte de borde"), "borderTint", "Marco dorado de la barra de vida. Solo en el estilo Antiguo (Blizzard)."),
+		function() return SP.cfg.shape == "old" end)
+	Dep(L:Color(T("Tinte de borde del cast"), "castBorderTint", "Marco plateado del castbar. Solo en los estilos Clasico y Antiguo."), IsClassicStyle)
+	Dep(L:Color(T("Tinte de borde (no interrumpible)"), "castProtectedBorderTint", "Marco con escudo del castbar cuando el hechizo no se puede interrumpir. Solo en los estilos Clasico y Antiguo."), IsClassicStyle)
 end
 
 local function BuildHighlight(L)
@@ -631,7 +668,10 @@ local function BuildDebuffsPage(L)
 	Dep(L:Check(T("Solo en enemigos"), "debuffEnemyOnly"), on)
 	Dep(L:Check(T("Solo en arena"), "debuffArenaOnly"), on)
 	Dep(L:Check(T("Tiempo restante en el icono"), "debuffTimer"), on)
-	Dep(L:Slider(T("Tamano del icono"), "debuffSize", 16, 60, 1), on)
+	Dep(L:Slider(T("Ancho del icono"), "debuffWidth", 10, 100, 1), on)
+	Dep(L:Slider(T("Alto del icono"), "debuffHeight", 10, 100, 1), on)
+	Dep(L:Slider(T("Mover icono X"), "debuffX", -150, 150, 1, nil, "Positivo a la derecha, negativo a la izquierda."), on)
+	Dep(L:Slider(T("Mover icono Y"), "debuffY", -100, 100, 1, nil, "Positivo sube, negativo baja."), on)
 	Dep(L:Dropdown(T("Posicion"), "debuffPos", DebuffPosOptions), on)
 	Dep(L:Check(T("Bloqueos de interrupcion (Pummel, Kick...)"), "debuffLockouts",
 		"Pummel, Shield Bash, Kick, etc. no dejan aura: se detectan en el registro de combate y se muestran como silencio."), on)
@@ -663,7 +703,10 @@ local function BuildGCDPage(L)
 	L:Check(T("Mostrar GCD de enemigos de arena"), "gcd")
 	Dep(L:Dropdown(T("Posicion"), "gcdPos", GCDPosOptions), on)
 	Dep(L:Check(T("Tiempo restante en el icono"), "gcdTimer"), on)
-	Dep(L:Slider(T("Tamano del icono"), "gcdSize", 14, 64, 1), on)
+	Dep(L:Slider(T("Ancho del icono"), "gcdWidth", 10, 100, 1), on)
+	Dep(L:Slider(T("Alto del icono"), "gcdHeight", 10, 100, 1), on)
+	Dep(L:Slider(T("Mover icono X"), "gcdX", -150, 150, 1, nil, "Positivo a la derecha, negativo a la izquierda."), on)
+	Dep(L:Slider(T("Mover icono Y"), "gcdY", -100, 100, 1, nil, "Positivo sube, negativo baja."), on)
 	Dep(L:Check(T("Invertir el barrido"), "gcdReverse"), on)
 	Dep(L:Check(T("Ocultar el barrido"), "gcdHideSweep"), on)
 	Dep(L:Slider(T("Opacidad del barrido"), "gcdAlpha", 0, 1, 0.05, "%.2f"), function() return SP.cfg.gcd and not SP.cfg.gcdHideSweep end)
@@ -672,8 +715,8 @@ end
 
 -- Lista de totems: modo (icono / oculto / placa) e icono propio de cada uno
 local ELEMENT_COLOR = { earth = { 0.8, 0.67, 0 }, fire = { 1, 0.33, 0.33 }, water = { 0.4, 0.6, 1 }, air = { 0.7, 0.9, 1 } }
-local MODES = { [1] = { "Icono", 0.3, 1, 0.3 }, [0] = { "Oculto", 1, 0.3, 0.3 }, [2] = { "Placa", 0.8, 0.8, 0.8 } }
-local NEXT_MODE = { [1] = 0, [0] = 2, [2] = 1 }
+local MODES = { [1] = { "Icono", 0.3, 1, 0.3 }, [0] = { "Oculto", 1, 0.3, 0.3 }, [2] = { "Placa", 0.8, 0.8, 0.8 }, [3] = { "Icono + Placa", 0.4, 0.8, 1 } }
+local NEXT_MODE = { [1] = 0, [0] = 2, [2] = 3, [3] = 1 }
 
 local function TotemCfg(id)
 	local t = SP.cfg.totems[id]
@@ -687,7 +730,11 @@ local function BuildTotemsPage(L)
 	L:Check(T("Totems como icono"), "totemIcons")
 	Dep(L:Slider(T("Tamano icono totem"), "totemSize", 12, 48, 1), On("totemIcons"))
 	Dep(L:Check(T("Ocultar totems aliados"), "totemHideFriendly"), On("totemIcons"))
-	L:Header(T("Totem                                              Modo             Icono propio (ruta o ID de hechizo + Enter)"))
+	Dep(L:Slider(T("Escala de la placa del totem"), "totemPlateScale", 0.5, 2.5, 0.05, "%.2f",
+		"Agranda o achica solo las placas de los totems (modos Placa e Icono + Placa). No afecta a las demas placas."), On("totemIcons"))
+	Dep(L:Slider(T("Mover icono totem X"), "totemX", -80, 80, 1, nil, "Mueve el icono del totem en horizontal."), On("totemIcons"))
+	Dep(L:Slider(T("Mover icono totem Y"), "totemY", -80, 80, 1, nil, "Mueve el icono del totem en vertical."), On("totemIcons"))
+	L:Header(T("Totem                                              Modo                      Icono propio (ruta o ID de hechizo + Enter)"))
 	local p = L.page
 
 	local sf = CreateFrame("ScrollFrame", UName(), p, "UIPanelScrollFrameTemplate")
@@ -722,13 +769,13 @@ local function BuildTotemsPage(L)
 				fs:SetText(spellName)
 				fs:SetTextColor(col[1], col[2], col[3])
 
-				local btn = FlatButton(row, 72, 20, "")
+				local btn = FlatButton(row, 96, 20, "")
 				btn:SetPoint("LEFT", 184, 0)
 
 				local eb = CreateFrame("EditBox", UName(), row, "InputBoxTemplate")
-				eb:SetWidth(180)
+				eb:SetWidth(166)
 				eb:SetHeight(20)
-				eb:SetPoint("LEFT", 270, 0)
+				eb:SetPoint("LEFT", 290, 0)
 				eb:SetAutoFocus(false)
 				eb:SetFontObject("GameFontHighlightSmall")
 
@@ -761,6 +808,370 @@ local function BuildTotemsPage(L)
 		end
 	end
 	list:SetHeight(math.max(y, 1))
+end
+
+
+------------------------------ HECHIZOS (debuffs) ------------------------
+-- Lista editable de las auras que se muestran: activar/desactivar cada una,
+-- cambiar su categoria o prioridad y anadir hechizos propios por ID (como las
+-- opciones de hechizos de BigDebuffs). Lista con scroll "virtual": solo hay
+-- unas pocas filas reales que se rellenan segun el desplazamiento.
+local SPELL_ROWS, SPELL_ROW_H = 13, 24
+
+local function SpellState(id)
+	local cfg = SP.cfg
+	local b, c, o = SP.DEBUFF_BASE[id], cfg.customSpells[id], cfg.spellOverrides[id]
+	local cat = (c and c.cat) or (b and b.cat)
+	local pri = (c and tonumber(c.pri)) or (b and b.pri) or 50
+	if o then
+		if o.cat then cat = o.cat end
+		if o.pri then pri = o.pri end
+	end
+	return not (o and o.off), cat, pri
+end
+
+local function SpellOv(id)
+	local t = SP.cfg.spellOverrides
+	if not t[id] then t[id] = {} end
+	return t[id]
+end
+
+local function SpellClean(id)
+	local o = SP.cfg.spellOverrides[id]
+	if o and not o.off and not o.cat and not o.pri then SP.cfg.spellOverrides[id] = nil end
+end
+
+local function BuildSpellsPage(L)
+	local cats = SP.DEBUFF_CATS or {}
+	local nextCat = {}
+	for i, c in ipairs(cats) do nextCat[c] = cats[i + 1] or cats[1] end
+	local catIdx = {}
+	for i, c in ipairs(cats) do catIdx[c] = i end
+
+	L:Header(T("Hechizos de los debuffs"))
+	L:Note(T("Marca los que quieres ver, cambia su categoria o prioridad, o anade los tuyos por ID. La categoria manda; dentro de ella gana la prioridad mas alta."))
+	local p = L.page
+	local y = L.y
+	local state = { cat = nil, text = "", newCat = "cc" }
+	local list, rows, sf = {}, {}, nil
+	local nameCache = {}
+
+	local function NameOf(id)
+		local n = nameCache[id]
+		if not n then
+			local b = SP.DEBUFF_BASE[id]
+			n = GetSpellInfo(id) or (b and b.name) or ("ID " .. id)
+			nameCache[id] = n
+		end
+		return n
+	end
+	local function CatLabel(cat) return T(CAT_LABELS[cat] or cat or "?") end
+
+	local function Rebuild()
+		local ids, seen = {}, {}
+		for id in pairs(SP.DEBUFF_BASE) do seen[id] = true; ids[#ids + 1] = id end
+		for id in pairs(SP.cfg.customSpells) do if not seen[id] then ids[#ids + 1] = id end end
+		local q = strlower(state.text or "")
+		local f = {}
+		for _, id in ipairs(ids) do
+			local _, cat = SpellState(id)
+			if (not state.cat or cat == state.cat)
+				and (q == "" or strfind(strlower(NameOf(id)), q, 1, true) or strfind(tostring(id), q, 1, true)) then
+				f[#f + 1] = id
+			end
+		end
+		table.sort(f, function(a, b)
+			local _, ca, pa = SpellState(a)
+			local _, cb, pb = SpellState(b)
+			if ca ~= cb then return (catIdx[ca] or 99) < (catIdx[cb] or 99) end
+			if pa ~= pb then return pa > pb end
+			local na, nb = NameOf(a), NameOf(b)
+			if na ~= nb then return na < nb end
+			return a < b
+		end)
+		list = f
+	end
+
+	local function Update()
+		FauxScrollFrame_Update(sf, #list, SPELL_ROWS, SPELL_ROW_H)
+		local off = FauxScrollFrame_GetOffset(sf)
+		for i = 1, SPELL_ROWS do
+			local id = list[off + i]
+			if id then rows[i]:Set(id); rows[i]:Show() else rows[i]:Hide() end
+		end
+	end
+
+	local function Changed()
+		SP.DebuffsChanged()
+		Apply()
+	end
+
+	-- Fila 1: filtro por categoria, buscador y restablecer
+	local filterBtn = FlatButton(p, 160, 20, "")
+	filterBtn:SetPoint("TOPLEFT", 14, y - 2)
+	local function RefreshFilter()
+		filterBtn:SetText(T("Categoria") .. ": " .. (state.cat and CatLabel(state.cat) or T("Todas")))
+	end
+	filterBtn:SetScript("OnClick", function()
+		if not state.cat then state.cat = cats[1]
+		elseif catIdx[state.cat] >= #cats then state.cat = nil
+		else state.cat = cats[catIdx[state.cat] + 1] end
+		RefreshFilter()
+		Rebuild()
+		sf:SetVerticalScroll(0)
+		Update()
+	end)
+	Tip(filterBtn, "Pulsa para filtrar la lista por categoria.")
+
+	local sLbl = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	sLbl:SetPoint("TOPLEFT", 190, y - 6)
+	sLbl:SetText(T("Buscar"))
+	local search = CreateFrame("EditBox", UName(), p, "InputBoxTemplate")
+	search:SetWidth(120)
+	search:SetHeight(20)
+	search:SetPoint("TOPLEFT", 238, y - 2)
+	search:SetAutoFocus(false)
+	search:SetFontObject("GameFontHighlightSmall")
+	search:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+	search:SetScript("OnTextChanged", function(self)
+		state.text = self:GetText() or ""
+		Rebuild()
+		sf:SetVerticalScroll(0)
+		Update()
+	end)
+	Tip(search, "Busca por nombre o por ID de hechizo.")
+
+	local resetBtn = FlatButton(p, 100, 20, T("Restablecer"))
+	resetBtn:SetPoint("TOPLEFT", 372, y - 2)
+	resetBtn:SetScript("OnClick", function()
+		for k in pairs(SP.cfg.spellOverrides) do SP.cfg.spellOverrides[k] = nil end
+		for k in pairs(SP.cfg.customSpells) do SP.cfg.customSpells[k] = nil end
+		Changed()
+		Rebuild()
+		Update()
+	end)
+	Tip(resetBtn, "Vuelve la lista de hechizos a la original: quita tus hechizos y deshace los cambios.")
+
+	-- Fila 2: anadir un hechizo por ID
+	local aLbl = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	aLbl:SetPoint("TOPLEFT", 14, y - 34)
+	aLbl:SetText(T("Anadir ID"))
+	local idBox = CreateFrame("EditBox", UName(), p, "InputBoxTemplate")
+	idBox:SetWidth(70)
+	idBox:SetHeight(20)
+	idBox:SetPoint("TOPLEFT", 78, y - 30)
+	idBox:SetAutoFocus(false)
+	idBox:SetFontObject("GameFontHighlightSmall")
+	idBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	Tip(idBox, "ID del hechizo (por ejemplo el de Wowhead). Se anade en la categoria elegida a la derecha.")
+
+	local newCatBtn = FlatButton(p, 120, 20, "")
+	newCatBtn:SetPoint("TOPLEFT", 160, y - 30)
+	local function RefreshNewCat() newCatBtn:SetText(CatLabel(state.newCat)) end
+	newCatBtn:SetScript("OnClick", function()
+		state.newCat = nextCat[state.newCat] or cats[1]
+		RefreshNewCat()
+	end)
+	Tip(newCatBtn, "Categoria en la que se anadira el hechizo (pulsa para cambiar).")
+
+	local status = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	status:SetPoint("TOPLEFT", 14, y - 54)
+	status:SetWidth(450)
+	status:SetJustifyH("LEFT")
+
+	local addBtn = FlatButton(p, 80, 20, T("Anadir"))
+	addBtn:SetPoint("TOPLEFT", 288, y - 30)
+	local function DoAdd()
+		local id = tonumber(idBox:GetText())
+		id = id and math.floor(id)
+		if not id or not GetSpellInfo(id) then
+			status:SetTextColor(1, 0.3, 0.3)
+			status:SetText(T("ID de hechizo no valido"))
+			return
+		end
+		local cfg = SP.cfg
+		local b = SP.DEBUFF_BASE[id]
+		if b and not cfg.customSpells[id] then
+			local o = SpellOv(id)
+			o.off = nil
+			o.cat = (state.newCat ~= b.cat) and state.newCat or nil
+			SpellClean(id)
+		else
+			cfg.customSpells[id] = { cat = state.newCat, pri = 50 }
+			if cfg.spellOverrides[id] then cfg.spellOverrides[id].off = nil; SpellClean(id) end
+		end
+		nameCache[id] = nil
+		status:SetTextColor(0.3, 1, 0.3)
+		status:SetText(NameOf(id) .. " (" .. id .. ") " .. T("anadido en") .. " " .. CatLabel(state.newCat))
+		idBox:SetText("")
+		idBox:ClearFocus()
+		state.cat, state.text = nil, ""
+		search:SetText("")
+		RefreshFilter()
+		Changed()
+		Rebuild()
+		Update()
+		for i, v in ipairs(list) do
+			if v == id then
+				local sb = _G[sf:GetName() .. "ScrollBar"]
+				if sb then sb:SetValue((i - 1) * SPELL_ROW_H) end
+				break
+			end
+		end
+	end
+	addBtn:SetScript("OnClick", DoAdd)
+	idBox:SetScript("OnEnterPressed", DoAdd)
+
+	-- Cabecera de columnas
+	local hy = y - 72
+	local function Col(x, text)
+		local fs = p:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+		fs:SetPoint("TOPLEFT", x, hy)
+		fs:SetText(T(text))
+	end
+	Col(40, "Hechizo")
+	Col(214, "Ver")
+	Col(246, "Categoria")
+	Col(352, "Prioridad")
+
+	-- Lista con scroll
+	local ly = hy - 16
+	sf = CreateFrame("ScrollFrame", UName(), p, "FauxScrollFrameTemplate")
+	sf:SetPoint("TOPLEFT", 8, ly)
+	sf:SetWidth(470)
+	sf:SetHeight(SPELL_ROWS * SPELL_ROW_H)
+	sf:SetScript("OnVerticalScroll", function(self, offset)
+		FauxScrollFrame_OnVerticalScroll(self, offset, SPELL_ROW_H, Update)
+	end)
+	p:EnableMouseWheel(true)
+	p:SetScript("OnMouseWheel", function(_, delta)
+		local sb = _G[sf:GetName() .. "ScrollBar"]
+		if sb then sb:SetValue(sb:GetValue() - delta * SPELL_ROW_H * 2) end
+	end)
+
+	for i = 1, SPELL_ROWS do
+		local row = CreateFrame("Frame", nil, p)
+		row:SetWidth(470)
+		row:SetHeight(SPELL_ROW_H - 2)
+		row:SetPoint("TOPLEFT", 14, ly - (i - 1) * SPELL_ROW_H)
+
+		row.ico = row:CreateTexture(nil, "ARTWORK")
+		row.ico:SetWidth(20)
+		row.ico:SetHeight(20)
+		row.ico:SetPoint("LEFT", 2, 0)
+		row.ico:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+		row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		row.name:SetPoint("LEFT", 28, 0)
+		row.name:SetWidth(170)
+		row.name:SetJustifyH("LEFT")
+
+		row.chk = CreateFrame("CheckButton", UName(), row, "UICheckButtonTemplate")
+		row.chk:SetWidth(24)
+		row.chk:SetHeight(24)
+		row.chk:SetPoint("LEFT", 196, 0)
+		row.chk:SetScript("OnClick", function(self)
+			local on = self:GetChecked() and true or false
+			local o = SpellOv(row.id)
+			o.off = (not on) or nil
+			SpellClean(row.id)
+			row:Set(row.id)
+			Changed()
+		end)
+
+		row.cat = FlatButton(row, 100, 20, "")
+		row.cat:SetPoint("LEFT", 232, 0)
+		row.cat:SetScript("OnClick", function()
+			local _, cur = SpellState(row.id)
+			local new = nextCat[cur] or cats[1]
+			local c = SP.cfg.customSpells[row.id]
+			if c then
+				c.cat = new
+			else
+				local o = SpellOv(row.id)
+				o.cat = (new ~= SP.DEBUFF_BASE[row.id].cat) and new or nil
+				SpellClean(row.id)
+			end
+			row:Set(row.id)
+			Changed()
+		end)
+
+		row.pri = CreateFrame("EditBox", UName(), row, "InputBoxTemplate")
+		row.pri:SetWidth(40)
+		row.pri:SetHeight(18)
+		row.pri:SetPoint("LEFT", 346, 0)
+		row.pri:SetAutoFocus(false)
+		row.pri:SetFontObject("GameFontHighlightSmall")
+		row.pri:SetJustifyH("CENTER")
+		row.pri:SetScript("OnEscapePressed", function(self) self:ClearFocus(); row:Set(row.id) end)
+		row.pri:SetScript("OnEnterPressed", function(self)
+			local n = tonumber(self:GetText())
+			self:ClearFocus()
+			if n then
+				n = math.max(0, math.min(100, math.floor(n + 0.5)))
+				local c = SP.cfg.customSpells[row.id]
+				if c then
+					c.pri = n
+				else
+					local o = SpellOv(row.id)
+					o.pri = (n ~= SP.DEBUFF_BASE[row.id].pri) and n or nil
+					SpellClean(row.id)
+				end
+				Changed()
+			end
+			row:Set(row.id)
+		end)
+
+		row.del = FlatButton(row, 24, 20, "")
+		row.del:SetPoint("LEFT", 396, 0)
+		row.del:SetScript("OnClick", function()
+			SP.cfg.customSpells[row.id] = nil
+			SP.cfg.spellOverrides[row.id] = nil
+			Changed()
+			Rebuild()
+			Update()
+		end)
+		row.del:HookScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetText(T(SP.cfg.customSpells[row.id] and "Quitar de la lista" or "Volver al valor original"), 1, 1, 1, 1, true)
+			GameTooltip:Show()
+		end)
+		row.del:HookScript("OnLeave", function() GameTooltip:Hide() end)
+
+		function row:Set(id)
+			self.id = id
+			local on, cat, pri = SpellState(id)
+			local _, _, icon = GetSpellInfo(id)
+			self.ico:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+			self.ico:SetDesaturated(not on)
+			self.name:SetText(NameOf(id))
+			if on then self.name:SetTextColor(1, 1, 1) else self.name:SetTextColor(0.5, 0.5, 0.5) end
+			self.chk:SetChecked(on)
+			self.cat:SetText(CatLabel(cat))
+			self.pri:SetText(tostring(pri))
+			self.pri:SetCursorPosition(0)
+			if SP.cfg.customSpells[id] then
+				self.del:SetText("X"); self.del:Show()
+			elseif SP.cfg.spellOverrides[id] then
+				self.del:SetText("R"); self.del:Show()
+			else
+				self.del:Hide()
+			end
+		end
+		rows[i] = row
+	end
+
+	local holder = CreateFrame("Frame", nil, p)
+	holder:SetWidth(1)
+	holder:SetHeight(1)
+	function holder:Refresh()
+		RefreshFilter()
+		RefreshNewCat()
+		Rebuild()
+		Update()
+	end
+	widgets[#widgets + 1] = holder
 end
 
 ------------------------------ PERFILES ----------------------------
@@ -980,6 +1391,51 @@ function SP.ShowProfiles()
 	profFrame:Show()
 end
 
+-- Rivales en sigilo (solo arena, con el ojo)
+local RAID_ICON_NAMES = { "Estrella", "Circulo", "Diamante", "Triangulo", "Luna", "Cuadrado", "Cruz", "Calavera" }
+local function RaidIconOptions()
+	local o = { { T("Ninguna"), 0 } }
+	for i = 1, 8 do
+		o[#o + 1] = { "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_" .. i .. ":14|t " .. T(RAID_ICON_NAMES[i]), i }
+	end
+	return o
+end
+
+-- Las marcas son una tabla (una por rival): controles propios
+local function StealthIconDropdown(L, i)
+	local x, y = L:Next("dropdown")
+	local key = "stealthIcon" .. i
+	local b = MakeDropdown(L.page, x, y, string.format(T("Marca de arena%d"), i), key, RaidIconOptions)
+	function b:Refresh()
+		local cur = SP.cfg.stealthIcons[i] or 0
+		for _, o in ipairs(RaidIconOptions()) do
+			if o[2] == cur then self:SetText(o[1]) end
+		end
+	end
+	b:SetScript("OnClick", function(self)
+		ShowList(self, RaidIconOptions(), SP.cfg.stealthIcons[i] or 0, function(o)
+			SP.cfg.stealthIcons[i] = o[2]
+			self:Refresh()
+			Apply()
+		end)
+	end)
+	return b
+end
+
+local function BuildStealthPage(L)
+	L:Header(T("Rivales en sigilo"))
+	L:Note(T("Solo en arena, cuando tienes el ojo (Shadow Sight) y un rival esta en sigilo (picaro, druida...)."))
+	L:Check(T("Marcar rivales en sigilo"), "stealthMark",
+		"Les pone una marca de banda que el juego dibuja sobre su cabeza, para verlos aunque no tengan placa. Se quita al salir del sigilo.")
+	L:Check(T("Aviso en pantalla"), "stealthAlert", "Muestra arriba de la pantalla quien esta en sigilo y con que marca.")
+	Dep(L:Slider(T("Tamano del aviso"), "stealthAlertSize", 16, 64, 1), On("stealthAlert"))
+	Dep(L:Button(T("Probar aviso (5 s)"), function() if SP.TestStealth then SP.TestStealth() end end), On("stealthAlert"))
+
+	L:Header(T("Marca de cada rival"))
+	L:Note(T("El tamano de la marca sobre el personaje lo decide el juego y no se puede cambiar."))
+	for i = 1, 5 do Dep(StealthIconDropdown(L, i), On("stealthMark")) end
+end
+
 local function BuildProfilesPage(L)
 	L:Header(T("Perfiles"))
 	L:Note(T("Exporta tu configuracion como un texto para copiarla a otro personaje o cuenta, o importa la de otra persona."))
@@ -1002,7 +1458,9 @@ local SECTIONS = {
 	{ "Resaltado", BuildHighlight },
 	{ "Arena", BuildArena },
 	{ "Debuffs", BuildDebuffsPage },
+	{ "Hechizos", BuildSpellsPage, true }, -- true = sin desplazamiento de pagina (la lista tiene el suyo)
 	{ "GCD", BuildGCDPage },
+	{ "Sigilo", BuildStealthPage },
 	{ "Totems", BuildTotemsPage, true }, -- true = sin desplazamiento (la lista tiene el suyo)
 	{ "Perfiles", BuildProfilesPage },
 }

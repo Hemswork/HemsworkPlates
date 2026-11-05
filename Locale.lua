@@ -23,8 +23,70 @@ local EN = {
 	["Ancho"] = "Width",
 	["Alto de barra"] = "Bar height",
 	["Alto cast bar"] = "Castbar height",
+	["Ancho cast bar"] = "Castbar width",
+	["Mover cast bar arriba/abajo"] = "Move castbar up/down",
 	["Escala"] = "Scale",
 	["Opacidad sin target"] = "Non-target opacity",
+	["Modificar opacidad sin target"] = "Override non-target opacity",
+	["Sustituye la opacidad del juego en las placas que no son tu target (solo cuando tienes un target). Desactivado: se usa la del juego."] =
+		"Replaces the game's opacity on plates that are not your target (only while you have a target). Off: the game's own opacity is used.",
+	["De 0% (invisibles) a 99% (casi sin transparencia). Puedes escribir el valor exacto."] =
+		"From 0% (invisible) to 99% (almost no transparency). You can type the exact value.",
+	["Ancho del nombre"] = "Name width",
+	["Hechizos"] = "Spells",
+	["Hechizos de los debuffs"] = "Debuff spells",
+	["Marca los que quieres ver, cambia su categoria o prioridad, o anade los tuyos por ID. La categoria manda; dentro de ella gana la prioridad mas alta."] = "Tick the ones you want to see, change their category or priority, or add your own by ID. Category comes first; within it the highest priority wins.",
+	["Categoria"] = "Category",
+	["Todas"] = "All",
+	["Buscar"] = "Search",
+	["Anadir ID"] = "Add ID",
+	["Anadir"] = "Add",
+	["anadido en"] = "added to",
+	["ID de hechizo no valido"] = "Invalid spell ID",
+	["Hechizo"] = "Spell",
+	["Ver"] = "Show",
+	["Prioridad"] = "Priority",
+	["Quitar de la lista"] = "Remove from list",
+	["Volver al valor original"] = "Back to the original value",
+	["Pulsa para filtrar la lista por categoria."] = "Click to filter the list by category.",
+	["Busca por nombre o por ID de hechizo."] = "Search by spell name or ID.",
+	["Vuelve la lista de hechizos a la original: quita tus hechizos y deshace los cambios."] = "Returns the spell list to the original: removes your spells and undoes your changes.",
+	["ID del hechizo (por ejemplo el de Wowhead). Se anade en la categoria elegida a la derecha."] = "Spell ID (for example from Wowhead). It is added to the category chosen on the right.",
+	["Categoria en la que se anadira el hechizo (pulsa para cambiar)."] = "Category the spell will be added to (click to change).",
+	["Tamano de la calavera"] = "Skull size",
+	["Calavera de Blizzard que sustituye al nivel ?? en jefes y elites sin nivel."] = "Blizzard skull that replaces the ?? level on bosses and level-less elites.",
+	["Borde de los iconos"] = "Icon border",
+	["Estilo del borde de iconos"] = "Icon border style",
+	["Blizzard (como BigDebuffs)"] = "Blizzard (like BigDebuffs)",
+	["Plano (negro)"] = "Flat (black)",
+	["Borde de los iconos de debuffs, GCD, interrupciones y cast. Blizzard = el mismo marco de BigDebuffs; Plano = solo una linea negra."] =
+		"Border of the debuff, GCD, interrupt and cast icons. Blizzard = the same frame BigDebuffs uses; Flat = just a black line.",
+	["Tinte del borde de iconos"] = "Icon border tint",
+	["Es un tinte: blanco = marco original de Blizzard; gris oscuro o negro lo oscurece."] = "This is a tint: white = original Blizzard frame; dark grey or black darkens it.",
+	["Oscuridad del fondo de barra"] = "Bar background darkness",
+	["Opacidad del interior de las barras (la parte vacia). 100% = fondo totalmente oscuro; baja el valor para verlo mas transparente."] =
+		"Opacity of the bar interior (the empty part). 100% = fully dark background; lower it to make it more transparent.",
+	["Tamano del nivel"] = "Level text size",
+	["Tamano de letra del nivel (el numero junto a la barra, por ejemplo 80)."] = "Font size of the level (the number next to the bar, e.g. 80).",
+	["Mover icono totem X"] = "Move totem icon X",
+	["Mover icono totem Y"] = "Move totem icon Y",
+	["Mueve el icono del totem en horizontal."] = "Moves the totem icon horizontally.",
+	["Mueve el icono del totem en vertical."] = "Moves the totem icon vertically.",
+	["Ancho maximo del nombre: si no cabe se recorta con ... para que vaya siempre en una sola fila."] =
+		"Maximum name width: if it does not fit it is cut with ... so it always stays on a single row.",
+	["Tinte de borde"] = "Border tint",
+	["Es un tinte, no un color normal: blanco deja el borde original; gris oscuro o negro lo oscurece."] =
+		"This is a tint, not a regular color: white keeps the original border; dark grey or black darkens it.",
+	["Marco dorado de la barra de vida. Solo en el estilo Antiguo (Blizzard)."] = "Golden frame of the health bar. Old (Blizzard) style only.",
+	["Tinte de borde del cast"] = "Castbar border tint",
+	["Marco plateado del castbar. Solo en los estilos Clasico y Antiguo."] = "Silver castbar frame. Classic and Old styles only.",
+	["Tinte de borde (no interrumpible)"] = "Border tint (uninterruptible)",
+	["Marco con escudo del castbar cuando el hechizo no se puede interrumpir. Solo en los estilos Clasico y Antiguo."] =
+		"Shielded castbar frame when the spell cannot be interrupted. Classic and Old styles only.",
+	["Escala de la placa del totem"] = "Totem plate scale",
+	["Agranda o achica solo las placas de los totems (modos Placa e Icono + Placa). No afecta a las demas placas."] =
+		"Enlarges or shrinks only totem plates (Plate and Icon + Plate modes). Other plates are not affected.",
+	["Icono + Placa"] = "Icon + Plate",
 	["Tamano icono cast"] = "Cast icon size",
 	["Grosor del borde"] = "Border thickness",
 	["Pixel perfect (bordes nitidos)"] = "Pixel perfect (crisp borders)",
@@ -128,8 +190,8 @@ local EN = {
 	["Icono"] = "Icon",
 	["Oculto"] = "Hidden",
 	["Placa"] = "Plate",
-	["Totem                                              Modo             Icono propio (ruta o ID de hechizo + Enter)"] =
-		"Totem                                              Mode             Custom icon (path or spell ID + Enter)",
+	["Totem                                              Modo                      Icono propio (ruta o ID de hechizo + Enter)"] =
+		"Totem                                              Mode                      Custom icon (path or spell ID + Enter)",
 
 	-- Debuffs
 	["Mostrar debuffs importantes"] = "Show important debuffs",
@@ -137,6 +199,12 @@ local EN = {
 	["Solo en arena"] = "Arena only",
 	["Tiempo restante en el icono"] = "Time remaining on icon",
 	["Tamano del icono"] = "Icon size",
+	["Ancho del icono"] = "Icon width",
+	["Alto del icono"] = "Icon height",
+	["Mover icono X"] = "Move icon X",
+	["Mover icono Y"] = "Move icon Y",
+	["Positivo a la derecha, negativo a la izquierda."] = "Positive moves right, negative moves left.",
+	["Positivo sube, negativo baja."] = "Positive moves up, negative moves down.",
 	["Posicion"] = "Position",
 	["A la derecha"] = "Right",
 	["A la izquierda"] = "Left",
@@ -213,6 +281,8 @@ local EN = {
 		"Applies the red 'Interrupted' and uninterruptible colors to the target and focus frame castbars.",
 	["Ruta de un archivo .ttf, por ejemplo Interface\\AddOns\\MiFuente\\fuente.ttf"] =
 		"Path to a .ttf file, for example Interface\\AddOns\\MyFont\\font.ttf",
+	["Ancho extra del castbar (se suma a la derecha). Con 0 queda el ancho original."] = "Extra castbar width (added to the right). At 0 the original width is kept.",
+	["Positivo sube el castbar, negativo lo baja. Con 0 queda en su posicion original."] = "Positive moves the castbar up, negative moves it down. At 0 it stays in its original position.",
 	["Con 0 el nombre queda en el centro exacto de la barra."] = "At 0 the name sits exactly centered over the bar.",
 	["Automatico: espanol si tu cliente esta en espanol, ingles en cualquier otro."] =
 		"Automatic: Spanish if your client is in Spanish, English for any other language.",
@@ -226,6 +296,34 @@ local EN = {
 		"Shows the most important aura on each enemy plate, by category and priority.",
 	["Pummel, Shield Bash, Kick, etc. no dejan aura: se detectan en el registro de combate y se muestran como silencio."] =
 		"Pummel, Shield Bash, Kick, etc. leave no aura: they are detected from the combat log and shown as silences.",
+
+	-- Sigilo
+	["Sigilo"] = "Stealth",
+	["Rivales en sigilo"] = "Stealthed opponents",
+	["Solo en arena, cuando tienes el ojo (Shadow Sight) y un rival esta en sigilo (picaro, druida...)."] =
+		"Arena only, while you have the eye (Shadow Sight) and an opponent is stealthed (rogue, druid...).",
+	["Marcar rivales en sigilo"] = "Mark stealthed opponents",
+	["Les pone una marca de banda que el juego dibuja sobre su cabeza, para verlos aunque no tengan placa. Se quita al salir del sigilo."] =
+		"Puts a raid marker on them, drawn by the game above their head, so you can see them without a nameplate. Removed when they leave stealth.",
+	["Aviso en pantalla"] = "On-screen alert",
+	["Muestra arriba de la pantalla quien esta en sigilo y con que marca."] = "Shows at the top of the screen who is stealthed and with which marker.",
+	["Tamano del aviso"] = "Alert size",
+	["Probar aviso (5 s)"] = "Test alert (5 s)",
+	["Marca de cada rival"] = "Marker for each opponent",
+	["El tamano de la marca sobre el personaje lo decide el juego y no se puede cambiar."] =
+		"The size of the marker above the character is set by the game and cannot be changed.",
+	["Marca de arena%d"] = "Marker for arena%d",
+	["Ninguna"] = "None",
+	["Estrella"] = "Star",
+	["Circulo"] = "Circle",
+	["Diamante"] = "Diamond",
+	["Triangulo"] = "Triangle",
+	["Luna"] = "Moon",
+	["Cuadrado"] = "Square",
+	["Cruz"] = "Cross",
+	["Calavera"] = "Skull",
+	["en sigilo"] = "stealthed",
+	["Rival de prueba"] = "Test opponent",
 
 	-- Mensajes del chat
 	["|cff66ccffHemsworkPlates|r cargado: version %s (Warmane, sin Awesome WotLK)"] =
