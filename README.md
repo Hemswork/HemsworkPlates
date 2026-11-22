@@ -64,7 +64,7 @@ Classic Blizzard look, pixel-perfect bars, castbars for every arena opponent, im
 ### Installation
 
 1. Download the repository (**Code → Download ZIP**).
-2. Copy the folder into `World of Warcraft/Interface/AddOns/` and make sure it is named **`HemsworkPlates`** (the folder must contain `HemsworkPlates.toc` directly).
+2. Unzip it into `World of Warcraft/Interface/AddOns/` and rename the folder from `HemsworkPlates-main` to **`HemsworkPlates`** (GitHub adds `-main` to the name).
 3. Start the game and enable **HemsworkPlates** in the AddOns list.
 4. If you use **NamePlateArenaGCDs**, disable it: its features are already included.
 
@@ -145,7 +145,7 @@ Aspecto clásico de Blizzard, barras pixel-perfect, castbar de todos los rivales
 ### Instalación
 
 1. Descarga el repositorio (**Code → Download ZIP**).
-2. Copia la carpeta en `World of Warcraft/Interface/AddOns/` y comprueba que se llama **`HemsworkPlates`** (dentro debe estar directamente `HemsworkPlates.toc`).
+2. Descomprímelo en `World of Warcraft/Interface/AddOns/` y cambia el nombre de la carpeta de `HemsworkPlates-main` a **`HemsworkPlates`** (GitHub le añade `-main` al nombre).
 3. Abre el juego y activa **HemsworkPlates** en la lista de AddOns.
 4. Si usas **NamePlateArenaGCDs**, desactívalo: sus funciones ya vienen incluidas.
 
