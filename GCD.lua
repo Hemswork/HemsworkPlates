@@ -1,11 +1,11 @@
 --------------------------------------------------------------------
--- HemsworkPlates - GCD de los enemigos de arena
--- Integrado desde NameplateArenaGCDs (Fruitdealer1337), basado en
--- ArenaGCDs (Oscarforge). Cuando un rival de arena lanza un hechizo se
--- muestra en su placa el icono con un barrido que dura su GCD (segun
--- clase, hechizo, haste y procs instantaneos).
--- Las placas no se buscan aqui: se usa el emparejamiento por GUID del
--- nucleo (sirve igual con Awesome WotLK y sin el).
+-- HemsworkPlates - GCD de los rivales de arena
+-- Sacado de NameplateArenaGCDs (Fruitdealer1337), que viene de
+-- ArenaGCDs (Oscarforge). Cuando un rival lanza algo sale el icono en su
+-- placa con un barrido que dura su GCD (segun clase, hechizo, haste y
+-- procs instantaneos).
+-- Las placas no se buscan aqui, uso el emparejamiento por GUID del nucleo
+-- (vale con y sin Awesome).
 --------------------------------------------------------------------
 local addonName, SP = ...
 
@@ -19,8 +19,8 @@ local SWIPE = "Interface\\AddOns\\" .. addonName .. "\\Media\\gcd_swipe"
 
 local ARENA_UNITS = { "arena1", "arena2", "arena3", "arena4", "arena5" }
 
--- Las tablas usan nombres de clase en ingles: se traducen desde el token de
--- clase para que no dependa del idioma del cliente
+-- las tablas usan las clases en ingles, asi que traduzco desde el token de
+-- clase y no depende del idioma del cliente
 local CLASS_NAMES = {
 	WARRIOR = "Warrior", PALADIN = "Paladin", HUNTER = "Hunter", ROGUE = "Rogue",
 	PRIEST = "Priest", DEATHKNIGHT = "Death Knight", SHAMAN = "Shaman",
@@ -39,7 +39,7 @@ local function GetUnitClassName(unit)
 	return c
 end
 
--- Duracion del GCD (misma logica que el addon original)
+-- duracion del GCD, igual que en el addon original
 local function DetermineGCD(unitClass, spellName, unit)
 	if unitClass == "Hunter" then
 		if spellName == "Readiness" then return 1.0 end
@@ -111,7 +111,7 @@ local function ResolveSpellInfo(unit, spellName, liveIcon)
 	return unitClass, icon or liveIcon
 end
 
--- Procs de cast instantaneo y de haste (para la duracion del GCD)
+-- procs de cast instantaneo y de haste (para calcular el GCD)
 local function OnUnitAura(unit)
 	local unitClass = GetUnitClassName(unit)
 	if unitClass == "" then return end
@@ -170,7 +170,7 @@ local function OnCastSucceeded(unit, spellName)
 	local unitClass = GetUnitClassName(unit)
 	local data = spellTable[unitClass] and spellTable[unitClass][spellName]
 	if not data then return end
-	-- Hechizos con tiempo de cast solo cuentan aqui si un proc los hizo instantaneos
+	-- los que tienen cast solo cuentan si un proc los hizo instantaneos
 	local instant = false
 	local buffs = instantCastBuffsTable[unitClass]
 	if buffs then
@@ -193,7 +193,7 @@ end
 ev:SetScript("OnEvent", function(_, event, unit, spellName, ...)
 	if event == "PLAYER_ENTERING_WORLD" then
 		wipe(unitClasses); wipe(gcdState); wipe(observedCasts); wipe(pendingClears)
-		-- El addon original pinta sus propios iconos (que no se mueven con /hms)
+		-- el addon original pinta sus propios iconos (que no se mueven con /hms)
 		if not SP.warnedGCD and IsAddOnLoaded("NamePlateArenaGCDs") then
 			SP.warnedGCD = true
 			DEFAULT_CHAT_FRAME:AddMessage(SP.T("|cffffaa00HemsworkPlates:|r el addon |cffffffffNamePlateArenaGCDs|r sigue activo. ")
@@ -202,7 +202,7 @@ ev:SetScript("OnEvent", function(_, event, unit, spellName, ...)
 		return
 	end
 	if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-		-- unit = timestamp, spellName = subevento; el GUID destino es el 6o argumento
+		-- ojo: aqui unit es el timestamp y spellName el subevento; el GUID destino es el 6o
 		if spellName == "SPELL_INTERRUPT" then
 			local dstGUID = select(4, ...)
 			for _, u in ipairs(ARENA_UNITS) do
@@ -236,7 +236,7 @@ ev:SetScript("OnEvent", function(_, event, unit, spellName, ...)
 	end
 end)
 
--- Prueba: GCD de 15 s en tu target (para colocar el icono fuera de arena)
+-- prueba: GCD de 15 s en tu target para colocar el icono fuera de arena
 function SP.TestGCD()
 	if not UnitExists("target") then
 		DEFAULT_CHAT_FRAME:AddMessage(SP.T("|cff66ccffHemsworkPlates:|r pon de target a alguien con placa visible."))
@@ -269,7 +269,7 @@ function SP.BuildGCD(sp)
 	sp.gcdFrame = f
 end
 
--- Tamano y posicion (lo llama Restyle)
+-- tamano y posicion, lo llama Restyle
 function SP.LayoutGCD(sp, px, fs)
 	local f, cfg = sp.gcdFrame, SP.cfg
 	if not f then return end
@@ -283,8 +283,8 @@ function SP.LayoutGCD(sp, px, fs)
 	SP.StyleIconBorder(f, f.icon, f.edge, w, px, h)
 	f.text:SetFont(cfg.font, math.max(6, floor(math.min(w, h) * 0.4)), "OUTLINE")
 	f.sweep:SetAlpha(cfg.gcdAlpha)
-	-- Si va del mismo lado que el icono de debuffs, se pega por fuera de su sitio
-	-- base (sin seguir el movimiento X/Y del debuff: cada icono se mueve aparte)
+	-- si va del mismo lado que el debuff se pone por fuera de su sitio base
+	-- (no sigue el X/Y del debuff, cada uno se mueve por su cuenta)
 	local side = cfg.gcdPos == "right" and "right" or "left"
 	local dside = cfg.debuffPos == "left" and "left" or "right"
 	local innerW
@@ -295,7 +295,7 @@ function SP.LayoutGCD(sp, px, fs)
 	f.lastFrame, f.lastText, f.lastIcon = nil, nil, nil
 end
 
--- Cada frame (con limite): pinta el GCD activo de cada placa
+-- cada frame (con limite) pinta el GCD activo de cada placa
 local byGuid = {}
 local lastUpdate = 0
 function SP.UpdateGCDs(active)
@@ -304,7 +304,7 @@ function SP.UpdateGCDs(active)
 	lastUpdate = now
 	local cfg = SP.cfg
 
-	-- GCDs que se cancelaron (el cast se paro sin confirmarse)
+	-- GCDs cancelados (el cast se paro sin llegar a salir)
 	for unit, serial in pairs(pendingClears) do
 		local st = gcdState[unit]
 		if st and st.serial == serial and st.tentative and not st.interrupted then ClearGCD(unit, serial) end
@@ -332,7 +332,7 @@ function SP.UpdateGCDs(active)
 				if cfg.gcdHideSweep then
 					f.sweep:Hide()
 				else
-					-- Hoja de 8x8 fotogramas del barrido original
+					-- hoja 8x8 con los frames del barrido original
 					local p = cfg.gcdReverse and (1 - ratio) or ratio
 					local idx = floor(p * 63)
 					if f.lastFrame ~= idx then

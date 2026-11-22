@@ -1,5 +1,5 @@
--- Buffs de haste y de casts instantaneos para el rastreador de GCD de arena.
--- Datos de NameplateArenaGCDs (Fruitdealer1337), basado en ArenaGCDs (Oscarforge).
+-- buffs de haste y de casts instantaneos para el GCD de arena.
+-- Los datos vienen de NameplateArenaGCDs (Fruitdealer1337) / ArenaGCDs (Oscarforge).
 local addonName, addon = ...
 -- Table to track instant cast proc auras, like Nature's Swiftness.
 addon.instantCastBuffsTable = {

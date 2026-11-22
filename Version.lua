@@ -1,10 +1,10 @@
 --------------------------------------------------------------------
--- HemsworkPlates - Aviso de version nueva
--- Un addon no puede consultar internet: cada copia anuncia su version
--- con mensajes de addon (invisibles) en grupo/arena, banda, campo de
--- batalla y hermandad. Si alguien tiene una version mas nueva, se avisa
--- una vez por sesion; si tiene una mas vieja, se le responde en privado
--- para que el reciba el aviso.
+-- HemsworkPlates - aviso de version nueva
+-- Un addon no puede mirar internet, asi que cada copia anuncia su version
+-- con mensajes de addon (no se ven) en grupo/arena, banda, BG y
+-- hermandad. Si alguien tiene una mas nueva te aviso una vez por sesion;
+-- si la suya es mas vieja le contesto por privado para que le salga
+-- el aviso a el.
 --------------------------------------------------------------------
 local addonName, SP = ...
 
@@ -64,7 +64,7 @@ local function OnVersion(remote, sender)
 				remote, MY, URL))
 		end
 	elseif Newer(MY, remote) and sender then
-		-- El otro va atrasado: se le responde en privado (como mucho una vez por minuto)
+		-- el otro va atrasado: le contesto por privado (max. una vez por minuto)
 		Send("WHISPER", sender)
 	end
 end
@@ -83,7 +83,7 @@ f:SetScript("OnEvent", function(_, event, prefix, msg, _, sender)
 		if v then OnVersion(v, sender) end
 		return
 	end
-	-- Se anuncia unos segundos despues (al entrar al mundo o al cambiar el grupo)
+	-- se anuncia unos segundos despues de entrar o de cambiar el grupo
 	pendingAt = GetTime() + 4
 	f:Show()
 end)

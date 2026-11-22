@@ -1,9 +1,9 @@
 --------------------------------------------------------------------
--- HemsworkPlates - Debuffs importantes (integrado desde la WeakAura
+-- HemsworkPlates - debuffs importantes (sale de la WA
 -- "[Nameplate] BigDebuffs 3.3.5")
--- Muestra en cada placa enemiga el aura mas importante: primero por
--- categoria (orden fijo) y dentro de ella por prioridad (100 = maxima);
--- a igual prioridad gana la que le quede mas tiempo.
+-- En cada placa enemiga se ve el aura mas importante: primero manda la
+-- categoria y dentro de ella la prioridad (100 = la mas alta). Si
+-- empatan, gana la que le quede mas tiempo.
 --------------------------------------------------------------------
 local addonName, SP = ...
 
@@ -293,11 +293,11 @@ local DEBUFF_SPELLS = {
 }
 
 
--- Orden de las categorias (1 = se muestra antes que cualquier otra)
+-- orden de categorias (la 1 va por delante de todas)
 local CAT_ORDER = { "immunities", "cc", "silence", "roots", "disarms", "defensives", "offensives", "others" }
 SP.DEBUFF_CATS = CAT_ORDER
 
--- Lista base: spellID -> { cat, pri, name } (la que se puede editar en /hms > Hechizos)
+-- lista base spellID -> { cat, pri, name } (la que editas en /hms > Hechizos)
 local CAT_INDEX = {}
 for i, cat in ipairs(CAT_ORDER) do CAT_INDEX[cat] = i end
 local BASE = {}
@@ -309,9 +309,9 @@ end
 DEBUFF_SPELLS = nil
 SP.DEBUFF_BASE = BASE
 
--- Tabla plana spellID -> { indice de categoria, prioridad, categoria }. Se rehace
--- cuando el usuario cambia algo (hechizos quitados, categorias, prioridades o
--- hechizos propios): cfg.spellOverrides[id] = { off, cat, pri }, cfg.customSpells[id] = { cat, pri }
+-- tabla plana spellID -> { indice de categoria, prioridad, categoria }.
+-- Se rehace cuando cambias algo de la lista: cfg.spellOverrides[id] =
+-- { off, cat, pri } y cfg.customSpells[id] = { cat, pri }
 local LOOKUP = {}
 local lookupVer
 SP.debuffVer = 0
@@ -339,10 +339,10 @@ local function RebuildLookup(cfg)
 	end
 end
 
--- Bloqueos de escuela por interrupcion: Pummel, Shield Bash, Kick, etc. no
--- dejan aura en el objetivo, asi que se detectan con SPELL_INTERRUPT del
--- registro de combate y se muestran como un silencio de prioridad maxima.
--- Duraciones de WotLK (segundos).
+-- bloqueos de escuela: Pummel, Shield Bash, Kick y compania no dejan aura,
+-- asi que los saco del SPELL_INTERRUPT del combat log y los pinto como
+-- un silencio con prioridad maxima.
+-- Duraciones de WotLK, en segundos.
 local LOCKOUTS = {
 	[6552] = 4,   -- Pummel (Guerrero)
 	[72] = 6,     -- Shield Bash (Guerrero)
@@ -369,7 +369,7 @@ function SP.AddLockout(guid, spellId)
 	return true
 end
 
--- Aura ganadora de la unidad (debuffs y buffs, como la WeakAura)
+-- el aura que gana en la unidad (debuffs y buffs, igual que la WA)
 local function Best(unit, cfg)
 	if lookupVer ~= SP.debuffVer then RebuildLookup(cfg) end
 	local now = GetTime()
@@ -403,9 +403,9 @@ local function Best(unit, cfg)
 end
 
 ---------------------------- CIRCULO DE COOLDOWN ---------------------------
--- Mismo metodo que la WeakAura: franjas de textura en vez del modelo Cooldown
--- del cliente 3.3.5, que deja de dibujarse al pulsar teclas o moverse.
--- Zona oscura = tiempo transcurrido, en sentido horario desde las 12.
+-- igual que la WA: franjas de textura en vez del Cooldown del cliente,
+-- que en 3.3.5 deja de pintarse al pulsar teclas o al moverte.
+-- La parte oscura es el tiempo que ya paso, en horario desde las 12.
 local PI, PI2, tan = math.pi, 2 * math.pi, math.tan
 
 local function Rect(f, n, x1, x2, top, bh, L)
@@ -504,24 +504,24 @@ function SP.BuildDebuff(sp)
 	sp.debuff = f
 end
 
--- Tamano y posicion (lo llama Restyle)
--- Pega un icono a la izquierda o a la derecha de la barra, centrado en vertical
--- con ella. "inner" = otro icono del mismo lado: se coloca justo por fuera.
+-- tamano y posicion, lo llama Restyle
+-- pega un icono a la izquierda o derecha de la barra, centrado en vertical.
+-- si hay otro icono en ese lado, este va por fuera
 function SP.PlaceSideIcon(f, sp, side, fs, px, innerW, dx, dy)
 	local function snap(v) return px and math.floor(v / px + 0.5) * px or v end
 	local cfg = SP.cfg
 	dx, dy = tonumber(dx) or 0, tonumber(dy) or 0
 	f:ClearAllPoints()
-	-- innerW = ancho del otro icono del mismo lado: este se coloca justo por fuera
+	-- innerW es el ancho del otro icono
 	local extra = innerW and (innerW + 4) or 0
 	if side == "left" then
-		-- Deja sitio al numero de arena si va a la izquierda de la barra
+		-- hueco para el numero de arena si va a la izquierda
 		local clear = (cfg.arenaIDs and cfg.arenaIDPos ~= "name") and (fs + 10) or 4
 		-- y al icono de clase
 		clear = clear + (sp.clsSpace or 0)
 		f:SetPoint("RIGHT", sp, "LEFT", -snap(clear + extra) + snap(dx), snap(dy))
 	else
-		-- Deja sitio al nivel (en el estilo Antiguo, a la cajita del marco dorado)
+		-- hueco para el nivel (en el Antiguo, la cajita del marco dorado)
 		local clear = fs * 1.6 + 8
 		if cfg.shape == "old" then clear = 21.1 * sp:GetWidth() / 102.91 + 4 end
 		f:SetPoint("LEFT", sp, "RIGHT", snap(clear + extra) + snap(dx), snap(dy))
@@ -546,7 +546,7 @@ function SP.LayoutDebuff(sp, px, fs)
 	f.lw, f.lh, f.lastP, f.lastS = 0, 0, -1, nil
 end
 
--- Escanea las auras de la unidad (solo cuando llega UNIT_AURA o en el repaso)
+-- mira las auras de la unidad (solo con UNIT_AURA o en el repaso)
 function SP.UpdateDebuff(sp, unit, friendly)
 	local f, cfg = sp.debuff, SP.cfg
 	if not f then return end

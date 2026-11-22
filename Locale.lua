@@ -1,9 +1,8 @@
 --------------------------------------------------------------------
--- HemsworkPlates - Idiomas (espanol / ingles)
--- Los textos se escriben en espanol en el codigo; SP.T() devuelve la
--- traduccion inglesa cuando el idioma activo es ingles.
--- Idioma: opcion "language" ("auto", "es", "en"). En "auto" se usa
--- espanol con clientes esES/esMX e ingles con cualquier otro.
+-- HemsworkPlates - idiomas (espanol / ingles)
+-- En el codigo todo va en espanol; SP.T() devuelve el ingles cuando toca.
+-- Opcion "language": "auto", "es" o "en". Con "auto", espanol para
+-- clientes esES/esMX e ingles para el resto.
 --------------------------------------------------------------------
 local addonName, SP = ...
 
@@ -227,7 +226,7 @@ local EN = {
 	["el texto no es un perfil de HemsworkPlates"] = "the text is not a HemsworkPlates profile",
 	["el perfil esta incompleto o danado (copialo entero)"] = "the profile is incomplete or damaged (copy all of it)",
 
-	-- Panel nuevo: secciones, bloques, notas y tooltips
+	-- panel: secciones, bloques, notas y tooltips
 	["Aspecto"] = "Look",
 	["Castbar"] = "Castbar",
 	["Target"] = "Target",

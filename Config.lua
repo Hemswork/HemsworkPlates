@@ -1,7 +1,7 @@
 --------------------------------------------------------------------
--- HemsworkPlates - Panel de configuracion (/hms)
--- Ventana oscura con menu lateral; cada seccion se monta con un
--- "layout" de dos columnas con bloques de titulo y desplazamiento.
+-- HemsworkPlates - panel de opciones (/hms)
+-- Ventana oscura con menu a la izquierda; cada seccion se monta con
+-- un layout de dos columnas
 --------------------------------------------------------------------
 local addonName, SP = ...
 local function T(s) return SP.T(s) end
@@ -13,7 +13,7 @@ local function UName() uid = uid + 1; return "HemsworkPlatesW" .. uid end
 local UpdateDeps
 local lastLanguage
 local function Apply()
-	-- Cambio de idioma: los textos del panel se crean una vez, hace falta /reload
+	-- el idioma pide /reload porque los textos del panel se crean una sola vez
 	if SP.cfg.language ~= lastLanguage then
 		if lastLanguage ~= nil then
 			SP.UpdateLanguage()
@@ -40,7 +40,7 @@ local function Skin(f, bg, edge)
 end
 SP.SkinFrame = Skin
 
--- Boton plano oscuro (sustituye a los botones rojos de Blizzard)
+-- boton plano oscuro en vez de los rojos de Blizzard
 local function FlatButton(parent, w, h, text)
 	local b = CreateFrame("Button", nil, parent)
 	b:SetWidth(w)
@@ -68,7 +68,7 @@ local function Tip(f, text)
 	f:HookScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
--- Opciones que dependen de otra (se ven grises si no aplican)
+-- opciones que dependen de otra, salen en gris si no aplican
 local deps = {}
 local function Dep(w, cond)
 	if w then deps[#deps + 1] = { w, cond } end
@@ -106,7 +106,7 @@ local function MakeCheck(parent, x, y, label, key, tip)
 	return cb
 end
 
--- Deslizador con casilla para escribir el valor exacto
+-- slider con cajita para escribir el valor a mano
 local function MakeSlider(parent, x, y, label, key, minV, maxV, step, fmt, tip)
 	fmt = fmt or "%d"
 	local pct = fmt == "pct" -- valor 0-1 mostrado como porcentaje
@@ -225,7 +225,7 @@ local function MakeCfgSwatch(parent, x, y, label, key, tip)
 	return MakeSwatch(parent, x, y, label, g, s, tip)
 end
 
--- Lista desplegable propia (con scroll de rueda)
+-- desplegable propio, con rueda del raton
 local ROWS = 12
 local listFrame
 local function ShowList(anchor, opts, current, onPick)
@@ -346,8 +346,8 @@ local function MakeEditBox(parent, x, y, label, key, tip)
 end
 
 ------------------------------ LAYOUT ------------------------------
--- Coloca los controles en dos columnas, fila a fila. Header() abre un bloque
--- con titulo y linea separadora a todo el ancho.
+-- pone los controles en dos columnas, fila a fila. Header() abre un
+-- bloque nuevo con titulo y una linea de lado a lado
 local COLX = { 14, 274 }
 local SIZES = { check = 26, slider = 46, dropdown = 44, color = 26, edit = 44, button = 30 }
 
@@ -659,7 +659,7 @@ local function BuildArena(L)
 	L:Check(T("Barras normales en tu target"), "barlessExcludeTarget")
 end
 
--- Debuffs importantes (integrados desde la WeakAura)
+-- debuffs importantes (lo que antes era la WA)
 local CAT_LABELS = {
 	immunities = "Inmunidades", cc = "Control (CC)", silence = "Silencios", roots = "Raices",
 	disarms = "Desarmes", defensives = "Defensivos", offensives = "Ofensivos", others = "Otros",
@@ -722,7 +722,7 @@ local function BuildGCDPage(L)
 	Dep(L:Button(T("Probar en mi target (15 s)"), function() if SP.TestGCD then SP.TestGCD() end end), on)
 end
 
--- Lista de totems: modo (icono / oculto / placa) e icono propio de cada uno
+-- lista de totems: modo e icono de cada uno
 local ELEMENT_COLOR = { earth = { 0.8, 0.67, 0 }, fire = { 1, 0.33, 0.33 }, water = { 0.4, 0.6, 1 }, air = { 0.7, 0.9, 1 } }
 local MODES = { [1] = { "Icono", 0.3, 1, 0.3 }, [0] = { "Oculto", 1, 0.3, 0.3 }, [2] = { "Placa", 0.8, 0.8, 0.8 }, [3] = { "Icono + Placa", 0.4, 0.8, 1 } }
 local NEXT_MODE = { [1] = 0, [0] = 2, [2] = 3, [3] = 1 }
@@ -733,7 +733,7 @@ local function TotemCfg(id)
 	return t
 end
 
--- Seccion sin desplazamiento propio: la lista de totems tiene su scroll
+-- sin scroll de pagina, la lista ya tiene el suyo
 local function BuildTotemsPage(L)
 	L:Header(T("Totems"))
 	L:Check(T("Totems como icono"), "totemIcons")
@@ -821,10 +821,9 @@ end
 
 
 ------------------------------ HECHIZOS (debuffs) ------------------------
--- Lista editable de las auras que se muestran: activar/desactivar cada una,
--- cambiar su categoria o prioridad y anadir hechizos propios por ID (como las
--- opciones de hechizos de BigDebuffs). Lista con scroll "virtual": solo hay
--- unas pocas filas reales que se rellenan segun el desplazamiento.
+-- lista de auras: encender/apagar cada una, cambiar categoria o
+-- prioridad y meter hechizos por ID (parecido a BigDebuffs). El scroll
+-- es "virtual": hay pocas filas de verdad y se rellenan segun bajas
 local SPELL_ROWS, SPELL_ROW_H = 13, 24
 
 local function SpellState(id)
@@ -915,7 +914,7 @@ local function BuildSpellsPage(L)
 		Apply()
 	end
 
-	-- Fila 1: filtro por categoria, buscador y restablecer
+	-- fila 1: filtro, buscador y restablecer
 	local filterBtn = FlatButton(p, 160, 20, "")
 	filterBtn:SetPoint("TOPLEFT", 14, y - 2)
 	local function RefreshFilter()
@@ -962,7 +961,7 @@ local function BuildSpellsPage(L)
 	end)
 	Tip(resetBtn, "Vuelve la lista de hechizos a la original: quita tus hechizos y deshace los cambios.")
 
-	-- Fila 2: anadir un hechizo por ID
+	-- fila 2: anadir hechizo por ID
 	local aLbl = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	aLbl:SetPoint("TOPLEFT", 14, y - 34)
 	aLbl:SetText(T("Anadir ID"))
@@ -1184,9 +1183,9 @@ local function BuildSpellsPage(L)
 end
 
 ------------------------------ PERFILES ----------------------------
--- Exportar / importar la configuracion como un texto para copiar y pegar en
--- otro personaje o cuenta. Formato propio con tipos (no se ejecuta codigo al
--- importar) y despues base64, para que el texto solo tenga letras y numeros.
+-- exportar/importar la config como texto para pasarla a otro pj o cuenta.
+-- Formato propio con tipos (al importar no se ejecuta nada) y luego
+-- base64 para que solo queden letras y numeros
 local PROFILE_PREFIX = "HMS1:"
 local PROFILE_SKIP = { geo = true, dbVersion = true } -- datos internos, no ajustes
 
@@ -1212,7 +1211,7 @@ local function Ser(v, out, top)
 	end
 end
 
--- Lector del formato anterior; devuelve valor y posicion siguiente (nil si falla)
+-- lee el formato de arriba; devuelve valor y siguiente posicion (nil si falla)
 local function Deser(s, i, depth)
 	if depth > 20 then return end
 	local c = string.sub(s, i, i)
@@ -1292,7 +1291,7 @@ local function FillDefaults(dst, src)
 	end
 end
 
--- Devuelve true o false + motivo
+-- true, o false y el motivo
 function SP.ImportProfile(text)
 	text = string.gsub(text or "", "%s", "")
 	if string.sub(text, 1, #PROFILE_PREFIX) ~= PROFILE_PREFIX then
@@ -1307,7 +1306,7 @@ function SP.ImportProfile(text)
 	for k in pairs(cfg) do
 		if not PROFILE_SKIP[k] then cfg[k] = nil end
 	end
-	-- Solo ajustes conocidos y con el tipo correcto
+	-- solo ajustes que existen y con el tipo bueno
 	for k, v in pairs(tbl) do
 		local d = defaults[k]
 		if d ~= nil and type(d) == type(v) and not PROFILE_SKIP[k] then cfg[k] = v end
@@ -1358,7 +1357,7 @@ function SP.ShowProfiles()
 		eb:SetHeight(190)
 		eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 		sf:SetScrollChild(eb)
-		-- Pulsar en cualquier parte del recuadro enfoca el texto
+		-- clic en cualquier parte del recuadro y ya escribes
 		sf:EnableMouse(true)
 		sf:SetScript("OnMouseDown", function() eb:SetFocus() end)
 		f.eb = eb
@@ -1422,9 +1421,9 @@ local SECTIONS = {
 	{ "Target", BuildTargetPage },
 	{ "Arena", BuildArena },
 	{ "Debuffs", BuildDebuffsPage },
-	{ "Hechizos", BuildSpellsPage, true }, -- true = sin desplazamiento de pagina (la lista tiene el suyo)
+	{ "Hechizos", BuildSpellsPage, true }, -- true = sin scroll de pagina, la lista tiene el suyo
 	{ "GCD", BuildGCDPage },
-	{ "Totems", BuildTotemsPage, true }, -- true = sin desplazamiento (la lista tiene el suyo)
+	{ "Totems", BuildTotemsPage, true }, -- true = sin scroll de pagina, la lista tiene el suyo
 	{ "Perfiles", BuildProfilesPage },
 }
 
@@ -1443,7 +1442,7 @@ local function BuildFrame()
 	Skin(frame)
 	tinsert(UISpecialFrames, "HemsworkPlatesConfig")
 
-	-- Barra de titulo (se arrastra desde aqui)
+	-- barra de titulo, se arrastra desde aqui
 	local bar = CreateFrame("Frame", nil, frame)
 	bar:SetPoint("TOPLEFT", 1, -1)
 	bar:SetPoint("TOPRIGHT", -1, -1)
@@ -1535,7 +1534,7 @@ local function BuildFrame()
 		b:SetScript("OnClick", function() Select(i) end)
 		buttons[i] = b
 
-		-- Pagina: con desplazamiento (salvo Totems, que lleva su propia lista)
+		-- pagina con scroll (menos Totems, que tiene su lista)
 		local pg = CreateFrame("Frame", nil, content)
 		pg:SetAllPoints(content)
 		local page
@@ -1552,7 +1551,7 @@ local function BuildFrame()
 			local L = NewLayout(page)
 			def[2](L)
 			page:SetHeight(L:Height())
-			-- Sin barra de scroll si todo cabe
+			-- si todo cabe, sin barra de scroll
 			local bar = _G[sf:GetName() .. "ScrollBar"]
 			sf:SetScript("OnShow", function()
 				if bar then
@@ -1568,7 +1567,7 @@ local function BuildFrame()
 		UpdateDeps()
 	end)
 	Select(1)
-	-- Un frame nuevo nace visible: se oculta para que el primer /hms lo abra
+	-- los frames nacen visibles; lo escondo para que el primer /hms lo abra
 	frame:Hide()
 end
 

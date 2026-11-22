@@ -1,5 +1,5 @@
--- Tabla de hechizos para el rastreador de GCD de arena.
--- Datos de NameplateArenaGCDs (Fruitdealer1337), basado en ArenaGCDs (Oscarforge).
+-- hechizos para el GCD de arena.
+-- Los datos vienen de NameplateArenaGCDs (Fruitdealer1337) / ArenaGCDs (Oscarforge).
 local addonName, addon = ...
 
 addon.spellTable = {
