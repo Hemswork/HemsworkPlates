@@ -517,6 +517,8 @@ function SP.PlaceSideIcon(f, sp, side, fs, px, innerW, dx, dy)
 	if side == "left" then
 		-- Deja sitio al numero de arena si va a la izquierda de la barra
 		local clear = (cfg.arenaIDs and cfg.arenaIDPos ~= "name") and (fs + 10) or 4
+		-- y al icono de clase
+		clear = clear + (sp.clsSpace or 0)
 		f:SetPoint("RIGHT", sp, "LEFT", -snap(clear + extra) + snap(dx), snap(dy))
 	else
 		-- Deja sitio al nivel (en el estilo Antiguo, a la cajita del marco dorado)

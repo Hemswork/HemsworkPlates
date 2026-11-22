@@ -34,6 +34,14 @@ local defaults = {
 	castBorderTint = { 1, 1, 1 },          -- marco plateado del castbar
 	castProtectedBorderTint = { 1, 1, 1 }, -- marco con escudo (no interrumpible)
 	offsetX = 0, offsetY = 0, -- mover la placa entera respecto a la posicion nativa
+	-- centerPlate: la mitad de la barra justo sobre la cabeza (se ignora offsetX)
+	centerPlate = true,
+	-- Icono de clase de los jugadores, a la izquierda de la barra
+	classIcon = true, classIconSize = 20,
+	classIconGap = 0, -- separacion entre el icono y la placa (0 = pegado)
+	-- Icono de sanador (deducido por sus hechizos o por Gladius): rivales y grupo por separado
+	healerEnemy = true, healerEnemySize = 18, healerEnemyX = 0, healerEnemyY = 0,
+	healerParty = true, healerPartySize = 18, healerPartyX = 0, healerPartyY = 0,
 	nameX = 0, nameY = 0, -- mover el nombre (siempre centrado sobre la barra con 0, 0)
 	stacking = false, stackGap = 2, stackSpeed = 12, stackMax = 80,
 
@@ -43,9 +51,10 @@ local defaults = {
 	friendlyClassColor = false, friendlyPlayerColor = { 0, 0, 1 }, -- azul original de Blizzard
 
 	-- Funciones traidas de RefinedBlizzPlates
-	targetGlow = true, targetGlowColor = { 1, 1, 0 }, targetGlowAlpha = 0.8,
-	hoverGlow = true, hoverGlowColor = { 1, 1, 1 }, hoverGlowAlpha = 0.45,
-	glowSize = 6,
+	-- Sombra suave alrededor de la barra, rastro de dano en la vida y chispa del cast
+	shadow = true, shadowSize = 4, shadowAlpha = 0.6,
+	healthTrail = true,
+	castSpark = true,
 	healthFormat = 1, healthHideMax = true,
 	-- arenaIDPos: "left" = numero a la izquierda de la barra, "name" = en lugar del nombre
 	arenaIDs = true, partyIDs = true, arenaIDPos = "left",
@@ -148,7 +157,10 @@ local CAST_BORDER = "Interface\\CastingBar\\UI-CastingBar-Border-Small"
 local CAST_SHIELD = "Interface\\CastingBar\\UI-CastingBar-Small-Shield"
 local CAST_SPARK  = "Interface\\CastingBar\\UI-CastingBar-Spark"
 local CAST_FILL   = "Interface\\TargetingFrame\\UI-StatusBar"
-local PLATE_GLOW  = "Interface\\Tooltips\\Nameplate-Glow"
+local CLASS_ICONS = "Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes"
+local ROLE_ICONS  = "Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES" -- cruz verde de sanador
+-- Sombra radial 32x32: las esquinas son sus cuartos y los lados su fila/columna central
+local SHADOW      = "Interface\\AddOns\\" .. addonName .. "\\Media\\shadow.tga"
 
 -- Geometria de respaldo (unidades de la placa nativa) por si no se pudo medir.
 -- x/y/w/h = hueco de la barra dentro del borde; lx/ly = centro del nivel;
@@ -548,11 +560,56 @@ local function SetFill(p, w, h, pct, round)
 	p.f:Show()
 end
 
+-- Trozos de la sombra: 4 esquinas y 4 lados (arriba, abajo, izquierda, derecha)
+local SHADOW_COORDS = {
+	{ 0, 0.5, 0, 0.5 }, { 0.5, 1, 0, 0.5 }, { 0, 0.5, 0.5, 1 }, { 0.5, 1, 0.5, 1 },
+	{ 0.5, 0.5, 0, 0.5 }, { 0.5, 0.5, 0.5, 1 }, { 0, 0.5, 0.5, 0.5 }, { 0.5, 1, 0.5, 0.5 },
+}
+
+-- Coloca la sombra alrededor de "owner": o = grosor del contorno, s = tamano de la sombra
+local function LayoutShadow(owner, o, s, on)
+	if not on or s <= 0 then owner.shf:Hide() return end
+	local t = owner.sh
+	for i = 1, 4 do
+		t[i]:ClearAllPoints()
+		t[i]:SetWidth(s)
+		t[i]:SetHeight(s)
+	end
+	t[1]:SetPoint("BOTTOMRIGHT", owner, "TOPLEFT", -o, o)
+	t[2]:SetPoint("BOTTOMLEFT", owner, "TOPRIGHT", o, o)
+	t[3]:SetPoint("TOPRIGHT", owner, "BOTTOMLEFT", -o, -o)
+	t[4]:SetPoint("TOPLEFT", owner, "BOTTOMRIGHT", o, -o)
+	for i = 5, 8 do t[i]:ClearAllPoints() end
+	t[5]:SetPoint("BOTTOMLEFT", owner, "TOPLEFT", -o, o)
+	t[5]:SetPoint("TOPRIGHT", owner, "TOPRIGHT", o, o + s)
+	t[6]:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", -o, -o)
+	t[6]:SetPoint("BOTTOMRIGHT", owner, "BOTTOMRIGHT", o, -o - s)
+	t[7]:SetPoint("TOPRIGHT", owner, "TOPLEFT", -o, o)
+	t[7]:SetPoint("BOTTOMLEFT", owner, "BOTTOMLEFT", -o - s, -o)
+	t[8]:SetPoint("TOPLEFT", owner, "TOPRIGHT", o, o)
+	t[8]:SetPoint("BOTTOMRIGHT", owner, "BOTTOMRIGHT", o + s, -o)
+	local a = cfg.shadowAlpha or 0.6
+	for i = 1, 8 do t[i]:SetVertexColor(1, 1, 1, a) end
+	owner.shf:Show()
+end
+
 -- Contorno + fondo + relleno sobre "owner"
 local function BuildBarParts(owner)
 	owner.outline = NewPill(owner, 1)
 	owner.bgp = NewPill(owner, 2)
-	owner.fillp = NewPill(owner, 3)
+	owner.fillp = NewPill(owner, 4)
+	-- Sombra difuminada por fuera del contorno (debajo de todo lo demas)
+	owner.shf = CreateFrame("Frame", nil, owner)
+	owner.shf:SetAllPoints(owner)
+	owner.shf:SetFrameLevel(owner:GetFrameLevel())
+	owner.sh = {}
+	for i, tc in ipairs(SHADOW_COORDS) do
+		local t = owner.shf:CreateTexture(nil, "BACKGROUND")
+		t:SetTexture(SHADOW)
+		t:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
+		owner.sh[i] = t
+	end
+	owner.shf:Hide()
 	-- Capa del borde clasico (encima del relleno, debajo de los textos)
 	owner.cl = CreateFrame("Frame", nil, owner)
 	owner.cl:SetAllPoints(owner)
@@ -651,6 +708,8 @@ local function Restyle(plate)
 	perf.restyle = perf.restyle + 1
 	-- "old" = placas originales de Blizzard (marco dorado); comparte con
 	-- "classic" el castbar plateado y el resto del comportamiento
+	-- Solo quedan los estilos Clasico y Antiguo (perfiles viejos con Cuadrada/Redonda pasan a Clasico)
+	if cfg.shape ~= "old" and cfg.shape ~= "classic" then cfg.shape = "classic" end
 	local old = cfg.shape == "old"
 	local classic = cfg.shape == "classic" or old
 	local round = cfg.shape == "round"
@@ -667,6 +726,10 @@ local function Restyle(plate)
 	sp:SetHeight(h)
 	sp.fw = w
 	StyleBarParts(sp, h, round, bs, cfg.texture)
+	LayoutPill(sp.trail, h, round, cfg.texture)
+	sp.trail.f:ClearAllPoints()
+	sp.trail.f:SetPoint("LEFT", sp, "LEFT", 0, 0)
+	sp.trail.f:SetHeight(h)
 
 	SetFontSafe(sp.name, cfg.font, fs, outline)
 	SetFontSafe(sp.level, cfg.font, cfg.levelFontSize or fs, outline)
@@ -700,7 +763,6 @@ local function Restyle(plate)
 	if classic then
 		local one = SnapSize(1, px)
 		local oldGap = 0
-		sp.glow:Hide()
 		sp.inner.f:Hide()
 		if old then
 			-- Marco dorado original (Nameplate-Border, 128x32) con las medidas de la
@@ -792,11 +854,13 @@ local function Restyle(plate)
 		cb.time:SetPoint("RIGHT", cb, "RIGHT", -2, 0)
 	else
 		sp.border:Hide()
-		sp.glow:Hide()
 		cb.border:Hide()
 		cb.shield:Hide()
 		cb.inner.f:Hide()
 		sp.inner.f:Hide()
+		-- Chispa con las proporciones del castbar de Blizzard (32 sobre una barra de 10)
+		cb.spark:SetWidth(SnapSize(3.2 * ch, px))
+		cb.spark:SetHeight(SnapSize(3.2 * ch, px))
 		cb.spark:Hide()
 
 		sp.name:ClearAllPoints()
@@ -850,23 +914,11 @@ local function Restyle(plate)
 	if old then sp.boss:SetPoint("CENTER", sp.level, "CENTER", 0, 0)
 	else sp.boss:SetPoint("LEFT", sp.level, "LEFT", 0, 0) end
 
-	-- Brillo de target / mouseover: degradado alrededor del borde
+	-- Grosor del contorno (para la sombra y lo que va a los lados de la barra)
 	local o = (classic and SnapSize(1, px)) or bs
-	local gs = SnapSize(cfg.glowSize, px)
-	local gl = sp.gl
-	gl.t:ClearAllPoints()
-	gl.t:SetPoint("BOTTOMLEFT", sp, "TOPLEFT", -o - gs, o)
-	gl.t:SetPoint("TOPRIGHT", sp, "TOPRIGHT", o + gs, o + gs)
-	gl.b:ClearAllPoints()
-	gl.b:SetPoint("TOPLEFT", sp, "BOTTOMLEFT", -o - gs, -o)
-	gl.b:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", o + gs, -o - gs)
-	gl.l:ClearAllPoints()
-	gl.l:SetPoint("TOPRIGHT", sp, "TOPLEFT", -o, o)
-	gl.l:SetPoint("BOTTOMLEFT", sp, "BOTTOMLEFT", -o - gs, -o)
-	gl.r:ClearAllPoints()
-	gl.r:SetPoint("TOPLEFT", sp, "TOPRIGHT", o, o)
-	gl.r:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", o + gs, -o)
-	gl:Hide()
+	local shs = SnapSize(cfg.shadowSize or 4, px)
+	LayoutShadow(sp, o, shs, cfg.shadow and not old)
+	LayoutShadow(cb, bs, shs, cfg.shadow and not classic)
 
 	-- Icono de totem
 	-- Con placa + icono la escala del totem tambien afecta al icono: se compensa
@@ -887,17 +939,37 @@ local function Restyle(plate)
 	sp.totem.edge:SetPoint("TOPLEFT", sp.totem, "TOPLEFT", -te, te)
 	sp.totem.edge:SetPoint("BOTTOMRIGHT", sp.totem, "BOTTOMRIGHT", te, -te)
 
-	-- Numero de arena / grupo, a la izquierda de la barra
+	-- Icono de clase: a la izquierda de la barra (en el Antiguo, por fuera del marco dorado)
+	local cls = sp.cls
+	sp.clsSpace = 0
+	if cfg.classIcon then
+		local cs = SnapSize(cfg.classIconSize, px)
+		-- Pegado al borde (en el Antiguo, al filo del marco dorado) + la separacion elegida
+		local cgap = (old and Snap(3.968 * w / 102.91, px) or o) + Snap(cfg.classIconGap or 0, px)
+		cls:SetWidth(cs)
+		cls:SetHeight(cs)
+		cls:ClearAllPoints()
+		cls:SetPoint("RIGHT", sp, "LEFT", -cgap, 0)
+		SP.StyleIconBorder(cls, cls.icon, cls.edge, cs, px)
+		sp.clsSpace = cgap + cs
+	end
+	cls:Hide()
+	sp.clsClass = nil
+
+	-- Numero de arena / grupo, a la izquierda de la barra (y del icono de clase)
 	SetFontSafe(sp.idText, cfg.font, fs + 4, "OUTLINE")
 	sp.idText:ClearAllPoints()
-	sp.idText:SetPoint("RIGHT", sp, "LEFT", -Snap(4, px) - o, 0)
+	sp.idText:SetPoint("RIGHT", sp, "LEFT", -Snap(4, px) - math.max(o, sp.clsSpace), 0)
 	sp.idText:Hide()
+	sp.raid:ClearAllPoints()
+	sp.raid:SetPoint("RIGHT", sp, "LEFT", -3 - sp.clsSpace, 0)
 
 	if SP.LayoutDebuff then SP.LayoutDebuff(sp, px, fs) end
 	if SP.LayoutGCD then SP.LayoutGCD(sp, px, fs) end
 	sp.auraDirty = true
 
-	sp.cr, sp.curBC, sp.castNI, sp.lvlStr, sp.nameStr, sp.glowState = nil, nil, nil, nil, nil, nil
+	sp.cr, sp.castNI, sp.lvlStr, sp.nameStr = nil, nil, nil, nil
+	sp.healPos = nil -- recolocar el icono de sanador con el tamano nuevo
 	sp.idStr = false -- false (no nil): obliga a ocultar el numero de arena en la siguiente actualizacion
 	SP.ApplyMode(sp, sp.mode or "normal")
 end
@@ -905,7 +977,7 @@ end
 -- Modo de la placa: "normal", "barless" (solo nombre), "totem" o "hidden"
 function SP.ApplyMode(sp, mode)
 	if mode ~= "normal" then
-		sp.barParts = sp.barParts or { sp.outline.f, sp.bgp.f, sp.fillp.f, sp.inner.f, sp.gl, sp.cast }
+		sp.barParts = sp.barParts or { sp.outline.f, sp.bgp.f, sp.fillp.f, sp.inner.f, sp.cast, sp.shf, sp.trail.f, sp.cls }
 		for _, f in ipairs(sp.barParts) do f:Hide() end
 		if sp.debuff then sp.debuff:Hide() end
 		if sp.gcdFrame then sp.gcdFrame:Hide() end
@@ -939,12 +1011,10 @@ local function Build(plate)
 	sp:SetPoint("CENTER", plate, "CENTER", 0, 0)
 	sp.curOff = 0
 	BuildBarParts(sp)
+	sp.trail = NewPill(sp, 3)
+	sp.trail.f:Hide()
 	sp.inner = NewPill(sp, 2)
 	sp.inner.f:Hide()
-	sp.glow = sp.cl:CreateTexture(nil, "OVERLAY")
-	sp.glow:SetTexture(PLATE_GLOW)
-	sp.glow:SetBlendMode("ADD")
-	sp.glow:Hide()
 
 	-- Capa superior para textos e iconos
 	sp.top = CreateFrame("Frame", nil, sp)
@@ -961,18 +1031,6 @@ local function Build(plate)
 	sp.hp = NewFont(sp.top, "CENTER")
 	sp.hp:SetPoint("CENTER", sp, "CENTER", 0, 0)
 
-	-- Brillo (4 degradados alrededor de la barra)
-	sp.gl = CreateFrame("Frame", nil, sp)
-	sp.gl:SetAllPoints(sp)
-	sp.gl:SetFrameLevel(sp:GetFrameLevel() + 6)
-	for _, k in ipairs({ "t", "b", "l", "r" }) do
-		local t = sp.gl:CreateTexture(nil, "OVERLAY")
-		t:SetTexture(FLAT)
-		t:SetBlendMode("ADD")
-		sp.gl[k] = t
-	end
-	sp.gl:Hide()
-
 	-- Icono de totem (sustituye a la placa)
 	sp.totem = CreateFrame("Frame", nil, sp)
 	sp.totem:SetPoint("CENTER", sp, "CENTER", 0, 0)
@@ -986,6 +1044,22 @@ local function Build(plate)
 
 	sp.idText = NewFont(sp.top, "RIGHT")
 	sp.idText:Hide()
+
+	-- Icono de sanador
+	sp.heal = sp.top:CreateTexture(nil, "OVERLAY")
+	sp.heal:SetTexture(ROLE_ICONS)
+	sp.heal:SetTexCoord(20 / 64, 39 / 64, 1 / 64, 20 / 64)
+	sp.heal:Hide()
+
+	-- Icono de clase (jugadores)
+	sp.cls = CreateFrame("Frame", nil, sp)
+	sp.cls:SetFrameLevel(sp:GetFrameLevel() + 9)
+	sp.cls.edge = sp.cls:CreateTexture(nil, "BACKGROUND")
+	sp.cls.edge:SetTexture(0, 0, 0, 1)
+	sp.cls.icon = sp.cls:CreateTexture(nil, "ARTWORK")
+	sp.cls.icon:SetAllPoints(sp.cls)
+	sp.cls.icon:SetTexture(CLASS_ICONS)
+	sp.cls:Hide()
 
 	if SP.BuildDebuff then SP.BuildDebuff(sp) end
 	if SP.BuildGCD then SP.BuildGCD(sp) end
@@ -1234,23 +1308,6 @@ end
 local DiffColor = GetQuestDifficultyColor or GetDifficultyColor
 
 ------------------------------ UPDATE ------------------------------
--- Brillo de target / mouseover
-local function UpdateGlow(sp, isTarget, hover)
-	local st = (isTarget and cfg.targetGlow and "t") or (hover and cfg.hoverGlow and "h") or nil
-	if sp.glowState == st then return end
-	sp.glowState = st
-	if not st then sp.gl:Hide() return end
-	local c = st == "t" and cfg.targetGlowColor or cfg.hoverGlowColor
-	local a = st == "t" and cfg.targetGlowAlpha or cfg.hoverGlowAlpha
-	local r, g, b = c[1], c[2], c[3]
-	local gl = sp.gl
-	gl.t:SetGradientAlpha("VERTICAL", r, g, b, a, r, g, b, 0)
-	gl.b:SetGradientAlpha("VERTICAL", r, g, b, 0, r, g, b, a)
-	gl.l:SetGradientAlpha("HORIZONTAL", r, g, b, 0, r, g, b, a)
-	gl.r:SetGradientAlpha("HORIZONTAL", r, g, b, a, r, g, b, 0)
-	gl:Show()
-end
-
 -- Numero de arena (enemigos) o de grupo (aliados) dentro de arenas
 local function ArenaID(unit)
 	if zoneType ~= "arena" then return end
@@ -1267,6 +1324,132 @@ local function UpdateTotemIcon(sp, tid, isTarget, friendly)
 	if isTarget then sp.totem.edge:SetVertexColor(1, 1, 0.3, 1)
 	elseif friendly then sp.totem.edge:SetVertexColor(0.1, 0.9, 0.1, 1)
 	else sp.totem.edge:SetVertexColor(0.9, 0.1, 0.1, 1) end
+end
+
+-- Rastro de dano: al bajar la vida queda un trozo claro (sp.trail) que espera un
+-- momento y luego se encoge hasta el valor nuevo. trailing = placas animandose.
+local trailing = {}
+local TRAIL_HOLD, TRAIL_SPEED = 0.35, 7
+
+local function StopTrail(sp)
+	trailing[sp] = nil
+	sp.trailPct, sp.trailTarget = nil, nil
+	sp.trail.f:Hide()
+end
+
+local function UpdateTrail(sp, pct, round)
+	if not cfg.healthTrail or not pct or pct ~= pct then StopTrail(sp) return end
+	if pct > 1 then pct = 1 elseif pct < 0 then pct = 0 end
+	local tp = sp.trailPct
+	if not tp or pct >= tp then
+		-- Sube o se queda igual: sin rastro
+		StopTrail(sp)
+		sp.trailPct = pct
+		return
+	end
+	-- Golpe nuevo: el rastro se queda quieto un momento antes de encogerse
+	if not sp.trailTarget or pct < sp.trailTarget then sp.trailHold = GetTime() + TRAIL_HOLD end
+	sp.trailTarget = pct
+	SetFill(sp.trail, sp.fw, cfg.height, tp, round)
+	trailing[sp] = true
+end
+
+local function StepTrails(dt)
+	if not next(trailing) then return end
+	local now, round = GetTime(), cfg.shape == "round"
+	local k = math.exp(-dt * TRAIL_SPEED)
+	for sp in pairs(trailing) do
+		if sp.mode ~= "normal" or not sp.trailTarget then
+			StopTrail(sp)
+		elseif now >= (sp.trailHold or 0) then
+			local tp = sp.trailTarget + (sp.trailPct - sp.trailTarget) * k
+			if tp - sp.trailTarget < 0.003 then
+				local target = sp.trailTarget
+				StopTrail(sp)
+				sp.trailPct = target
+			else
+				sp.trailPct = tp
+				SetFill(sp.trail, sp.fw, cfg.height, tp, round)
+			end
+		end
+	end
+end
+
+-- Sanadores: en 3.3.5 no se puede preguntar la especializacion, se deduce por
+-- hechizos que solo tiene un healer (registro de combate). GUID -> true
+local healers = {}
+local HEALER_IDS = {
+	20473, 53563, 31842,        -- Holy Shock, Beacon of Light, Divine Illumination (pala holy)
+	47540, 33206, 47788, 34861, 724, -- Penance, Pain Suppression, Guardian Spirit, Circle of Healing, Lightwell
+	61295, 974, 16190,          -- Riptide, Earth Shield, Mana Tide Totem (chaman resto)
+	18562, 48438, 33891,        -- Swiftmend, Wild Growth, Tree of Life (druida resto)
+}
+local healerSpells
+local HEALER_EVENTS = { SPELL_CAST_SUCCESS = true, SPELL_HEAL = true, SPELL_AURA_APPLIED = true }
+
+local function IsHealerSpell(spellName)
+	if not healerSpells then
+		healerSpells = {}
+		for _, id in ipairs(HEALER_IDS) do
+			local n = GetSpellInfo(id)
+			if n then healerSpells[n] = true end
+		end
+	end
+	return spellName and healerSpells[spellName]
+end
+
+-- Gladius detecta la especializacion de los rivales: si esta cargado se usa
+-- tambien (se engancha a su Gladius:DetectSpec, que recibe "arenaN" y el nombre
+-- de la especializacion en el idioma del cliente)
+local function HookGladius()
+	if SP.gladiusHooked or not (Gladius and Gladius.DetectSpec and LibStub) then return end
+	local L = LibStub("AceLocale-3.0"):GetLocale("Gladius", true)
+	if not L then return end
+	local heal = {}
+	for _, k in ipairs({ "Holy", "Discipline", "Restoration" }) do
+		if L[k] then heal[L[k]] = true end
+	end
+	SP.gladiusHooked = true
+	hooksecurefunc(Gladius, "DetectSpec", function(_, unit, spec)
+		if not (spec and heal[spec] and unit) then return end
+		local guid = UnitGUID(unit)
+		if guid and not healers[guid] then
+			healers[guid] = true
+			local p = guidPlate[guid] or plateByName[UnitName(unit) or ""]
+			if p then dirty[p] = true end
+		end
+	end)
+end
+SP.HookGladius = HookGladius
+
+-- Cruz verde a la izquierda del nombre (o del numero de arena si va en su lugar);
+-- sin nombre visible, a la izquierda de la barra
+local function UpdateHealerIcon(sp, unit, isPlayer, mode, friendly)
+	local h = sp.heal
+	-- Ajustes de rivales o de tu grupo: healerEnemy* / healerParty*
+	local k = friendly and "healerParty" or "healerEnemy"
+	local on = cfg[k] and isPlayer and unit and (mode == "normal" or mode == "barless")
+		and healers[UnitGUID(unit) or ""]
+	if not on then
+		if sp.healPos then h:Hide(); sp.healPos = nil end
+		return
+	end
+	local px = sp.px or 1
+	local tw = sp.name:IsShown() and sp.name:GetStringWidth() or 0
+	local pos = k .. (tw > 0 and ("n" .. math.floor(tw + 0.5)) or "b")
+	if sp.healPos ~= pos then
+		sp.healPos = pos
+		h:ClearAllPoints()
+		local s = SnapSize(cfg[k .. "Size"] or 18, px)
+		h:SetWidth(s); h:SetHeight(s)
+		local dx, dy = Snap(cfg[k .. "X"] or 0, px), Snap(cfg[k .. "Y"] or 0, px)
+		if tw > 0 then
+			h:SetPoint("RIGHT", sp.name, "CENTER", -Snap(tw / 2 + 3, px) + dx, dy)
+		else
+			h:SetPoint("RIGHT", sp, "LEFT", -Snap(3, px) - (sp.clsSpace or 0) + dx, dy)
+		end
+	end
+	h:Show()
 end
 
 function UpdatePlate(plate)
@@ -1327,6 +1510,7 @@ function UpdatePlate(plate)
 		sp.mode = mode
 		if mode == "normal" then Restyle(plate) else SP.ApplyMode(sp, mode) end
 	end
+	UpdateHealerIcon(sp, unit, isPlayer, mode, friendly)
 	if mode == "hidden" then return end
 	if mode == "totem" then
 		UpdateTotemIcon(sp, tid, isTarget, friendly)
@@ -1373,6 +1557,7 @@ function UpdatePlate(plate)
 			hpv, hpm = NativeHealth(plate)
 		end
 		SetFill(sp.fillp, sp.fw, cfg.height, hpv / hpm, round)
+		UpdateTrail(sp, hpv / hpm, round)
 		if cfg.showHealthText then sp.hp:SetText(HealthString(hpv, hpm)) end
 
 		-- Color
@@ -1381,6 +1566,22 @@ function UpdatePlate(plate)
 		if sp.cr ~= r or sp.cg ~= g or sp.cb ~= b then
 			sp.cr, sp.cg, sp.cb = r, g, b
 			ColorPill(sp.fillp, r, g, b, 1)
+			-- Rastro: el mismo color mezclado con blanco
+			ColorPill(sp.trail, r + (1 - r) * 0.6, g + (1 - g) * 0.6, b + (1 - b) * 0.6, 0.9)
+		end
+
+		-- Icono de clase (solo jugadores)
+		local cc = cfg.classIcon and isPlayer and (unit and select(2, UnitClass(unit)) or nClass)
+		local tc = cc and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[cc]
+		if tc then
+			if sp.clsClass ~= cc then
+				sp.clsClass = cc
+				-- Recorte ligero para quitar el filo del atlas
+				sp.cls.icon:SetTexCoord(tc[1] + 0.015, tc[2] - 0.015, tc[3] + 0.015, tc[4] - 0.015)
+			end
+			sp.cls:Show()
+		else
+			sp.cls:Hide()
 		end
 
 		-- Nombre y nivel
@@ -1404,7 +1605,6 @@ function UpdatePlate(plate)
 				end
 			end
 		end
-		UpdateGlow(sp, isTarget, hover)
 
 		-- Debuffs importantes: solo se reescanean al llegar UNIT_AURA (o en el repaso)
 		if sp.auraDirty then
@@ -1429,24 +1629,6 @@ function UpdatePlate(plate)
 	end
 
 	if mode == "barless" then return end
-
-	-- Borde con target / mouseover
-	if sp.classic then
-		-- Borde negro; se aclara con el raton encima
-		if sp.curBC ~= hover then
-			sp.curBC = hover
-			local v = hover and 0.8 or 0
-			ColorPill(sp.outline, v, v, v, 1)
-		end
-	else
-		local bc = cfg.borderColor
-		if isTarget then bc = cfg.targetBorderColor
-		elseif hover then bc = cfg.hoverBorderColor end
-		if sp.curBC ~= bc then
-			sp.curBC = bc
-			ColorPill(sp.outline, bc[1], bc[2], bc[3], bc[4] or 1)
-		end
-	end
 
 	UpdateCast(plate)
 end
@@ -1533,7 +1715,7 @@ function UpdateCast(plate)
 			end
 			cb.icon:SetDesaturated(ni)
 		end
-		if sp.classic and pct > 0 and pct < 1 then
+		if cfg.castSpark and pct > 0 and pct < 1 then
 			cb.spark:ClearAllPoints()
 			cb.spark:SetPoint("CENTER", cb, "LEFT", cb.fw * pct, 0)
 			cb.spark:Show()
@@ -1621,6 +1803,13 @@ local function ClampTop(sp, plate, oy)
 	return oy
 end
 
+-- Centrada: la placa nativa esta centrada sobre la cabeza, asi que basta con
+-- no desplazarla en horizontal (la barra queda con su mitad justo encima)
+local function OffsetX()
+	if cfg.centerPlate then return 0 end
+	return cfg.offsetX
+end
+
 local list = {}
 local function byY(a, b) return a.y < b.y end
 
@@ -1658,7 +1847,7 @@ local function Restack(dt)
 		local cur = a.sp.curOff
 		cur = cur + (goal - cur) * k
 		a.sp.curOff = cur
-		a.sp:SetPoint("CENTER", a.plate, "CENTER", SnapOffset(a.sp, a.plate, ClampTop(a.sp, a.plate, cur + cfg.offsetY), cfg.offsetX))
+		a.sp:SetPoint("CENTER", a.plate, "CENTER", SnapOffset(a.sp, a.plate, ClampTop(a.sp, a.plate, cur + cfg.offsetY), OffsetX()))
 	end
 end
 
@@ -1668,7 +1857,7 @@ local function Position(dt)
 	else
 		for plate, sp in pairs(active) do
 			sp.curOff = 0
-			sp:SetPoint("CENTER", plate, "CENTER", SnapOffset(sp, plate, ClampTop(sp, plate, cfg.offsetY), cfg.offsetX))
+			sp:SetPoint("CENTER", plate, "CENTER", SnapOffset(sp, plate, ClampTop(sp, plate, cfg.offsetY), OffsetX()))
 		end
 	end
 end
@@ -1692,7 +1881,15 @@ local function TFBar(guid)
 	if FocusFrameSpellBar and guid == UnitGUID("focus") then return FocusFrameSpellBar end
 end
 
-function SP.OnCombatLog(_, sub, _, srcName, _, dstGUID, _, _, spellId)
+function SP.OnCombatLog(_, sub, srcGUID, srcName, _, dstGUID, _, _, spellId, spellName)
+	if HEALER_EVENTS[sub] then
+		if srcGUID and not healers[srcGUID] and IsHealerSpell(spellName) then
+			healers[srcGUID] = true
+			local p = guidPlate[srcGUID] or (srcName and plateByName[srcName])
+			if p then dirty[p] = true end
+		end
+		return
+	end
 	if sub ~= "SPELL_INTERRUPT" or not dstGUID then return end
 	lastInt[dstGUID], lastIntTime[dstGUID] = srcName, GetTime()
 	local plate = guidPlate[dstGUID]
@@ -1741,9 +1938,11 @@ local function OnPlateShow(plate)
 	sp.casting = false
 	sp.auraDirty = true
 	sp.intUntil = nil
-	sp.nameStr, sp.lvlStr, sp.cr, sp.curBC, sp.castNI = nil, nil, nil, nil, nil
+	sp.nameStr, sp.lvlStr, sp.cr, sp.castNI = nil, nil, nil, nil
 	sp.noCast = nil
-	sp.glowState = nil
+	StopTrail(sp)
+	sp.heal:Hide()
+	sp.healPos = nil
 	sp.idStr = false -- la placa se reutiliza: el numero de arena anterior debe borrarse
 	sp.idText:Hide()
 	if sp.mode ~= "normal" then
@@ -1922,6 +2121,12 @@ function OnEvent(self, event, arg1)
 		-- La 1.2.0 tenia avisos de sigilo: se quitan sus opciones guardadas
 		HemsworkPlatesDB.stealthMark, HemsworkPlatesDB.stealthAlert = nil, nil
 		HemsworkPlatesDB.stealthAlertSize, HemsworkPlatesDB.stealthIcons = nil, nil
+		-- Y el resaltado (brillo de target / raton), quitado en la 1.2.2
+		for _, k in ipairs({ "targetGlow", "targetGlowColor", "targetGlowAlpha", "hoverGlow",
+			"hoverGlowColor", "hoverGlowAlpha", "glowSize",
+			"petStyle", "petScale", "petPulse", "healerIcon", "healerIconSize" }) do
+			HemsworkPlatesDB[k] = nil
+		end
 		cfg = HemsworkPlatesDB
 		if not hadIconWH then
 			-- Antes un solo tamano (cuadrado): ancho y alto parten de ese valor
@@ -1973,6 +2178,7 @@ function OnEvent(self, event, arg1)
 		-- La opacidad sin target va de 0% a 99% (con 100% seria como no modificarla)
 		if (tonumber(cfg.nonTargetAlpha) or 0.7) > 0.99 then cfg.nonTargetAlpha = 0.99 end
 		SP.cfg = cfg
+		HookGladius()
 		if SP.UpdateLanguage then SP.UpdateLanguage() end
 		self:UnregisterEvent("ADDON_LOADED")
 		-- Marca de version para comprobar que el juego cargo el archivo actual
@@ -2001,6 +2207,7 @@ function OnEvent(self, event, arg1)
 				for plate in pairs(active) do SafeCall(UpdatePlate, plate) end
 			end
 			SafeCall(Position, dt)
+			SafeCall(StepTrails, dt)
 
 			-- Opacidad de las placas sin target (igual que RefinedBlizzPlates): el motor
 			-- deja a opacidad completa solo la del target y se pisa la del resto
@@ -2069,6 +2276,7 @@ function OnEvent(self, event, arg1)
 		self.markNext = 2
 		if event == "UPDATE_MOUSEOVER_UNIT" then self.hoverPlate = PlateForUnit("mouseover") end
 	elseif event == "PLAYER_ENTERING_WORLD" then
+		wipe(healers)
 		UpdateZone()
 		SafeCall(Scan)
 	elseif event == "ZONE_CHANGED_NEW_AREA" then

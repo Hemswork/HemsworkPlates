@@ -87,8 +87,6 @@ local EN = {
 	["Agranda o achica solo las placas de los totems (modos Placa e Icono + Placa). No afecta a las demas placas."] =
 		"Enlarges or shrinks only totem plates (Plate and Icon + Plate modes). Other plates are not affected.",
 	["Icono + Placa"] = "Icon + Plate",
-	["Tamano icono cast"] = "Cast icon size",
-	["Grosor del borde"] = "Border thickness",
 	["Pixel perfect (bordes nitidos)"] = "Pixel perfect (crisp borders)",
 	["Forma de las barras"] = "Bar style",
 	["Textura de la barra"] = "Bar texture",
@@ -104,8 +102,6 @@ local EN = {
 	["Plana"] = "Flat",
 	["Clasico WotLK"] = "WotLK Classic",
 	["Antiguo (Blizzard)"] = "Old (Blizzard)",
-	["Cuadrada"] = "Square",
-	["Redonda"] = "Round",
 
 	-- Texto
 	["Fuente"] = "Font",
@@ -115,7 +111,6 @@ local EN = {
 	["Ruta de fuente personalizada (Enter)"] = "Custom font path (Enter)",
 	["Tamano de texto"] = "Text size",
 	["Tamano texto del cast"] = "Castbar text size",
-	["Separacion del nivel"] = "Level spacing",
 	["Mostrar nombre"] = "Show name",
 	["Mostrar nivel"] = "Show level",
 	["Mostrar texto de vida"] = "Show health text",
@@ -133,20 +128,11 @@ local EN = {
 	["Amistoso"] = "Friendly",
 	["Tapeado por otro"] = "Tapped by others",
 	["Fondo de barra"] = "Bar background",
-	["Borde"] = "Border",
-	["Borde del target"] = "Target border",
 	["Color de cast bar"] = "Castbar color",
 	["Cast no interrumpible"] = "Uninterruptible cast",
 	["Cast interrumpido"] = "Interrupted cast",
 
 	-- Extras
-	["Brillo en el target"] = "Target glow",
-	["Color brillo target"] = "Target glow color",
-	["Intensidad brillo target"] = "Target glow intensity",
-	["Brillo al pasar el raton"] = "Mouseover glow",
-	["Color brillo raton"] = "Mouseover glow color",
-	["Intensidad brillo raton"] = "Mouseover glow intensity",
-	["Tamano del brillo"] = "Glow size",
 	["Formato del texto de vida"] = "Health text format",
 	["Ocultar texto con vida al maximo"] = "Hide text at full health",
 	["Escala del target"] = "Target scale",
@@ -244,7 +230,7 @@ local EN = {
 	-- Panel nuevo: secciones, bloques, notas y tooltips
 	["Aspecto"] = "Look",
 	["Castbar"] = "Castbar",
-	["Resaltado"] = "Highlight",
+	["Target"] = "Target",
 	["Arena"] = "Arena",
 	["GCD"] = "GCD",
 	["Estilo"] = "Style",
@@ -271,7 +257,6 @@ local EN = {
 		"Friendly plates show only the name, without a bar, in the zones you choose.",
 	["Ajusta tamanos y posiciones a pixeles exactos de tu pantalla para que los bordes se vean nitidos."] =
 		"Snaps sizes and positions to exact screen pixels so borders look crisp.",
-	["Solo en los estilos Cuadrada y Redonda."] = "Only for the Square and Round styles.",
 	["Opacidad de las placas que no son tu target (solo cuando tienes un target)."] =
 		"Opacity of plates that are not your target (only while you have a target).",
 	["Separa las placas que se solapan. El juego ya las separa por su cuenta; activalo solo si lo prefieres."] =
@@ -296,6 +281,39 @@ local EN = {
 		"Shows the most important aura on each enemy plate, by category and priority.",
 	["Pummel, Shield Bash, Kick, etc. no dejan aura: se detectan en el registro de combate y se muestran como silencio."] =
 		"Pummel, Shield Bash, Kick, etc. leave no aura: they are detected from the combat log and shown as silences.",
+
+	-- Efectos
+	["Efectos"] = "Effects",
+	["Sombra suave"] = "Soft shadow",
+	["Halo oscuro difuminado alrededor de la barra para separarla del fondo. No se usa en el estilo Antiguo (marco dorado)."] =
+		"Soft dark halo around the bar so it stands out from the background. Not used with the Old style (golden frame).",
+	["Rastro de dano"] = "Damage trail",
+	["Al perder vida queda un momento un trozo claro que se encoge hasta el valor nuevo: se ve cuanto dano acaba de recibir."] =
+		"When health drops, a light segment stays for a moment and shrinks to the new value, showing how much damage was just taken.",
+	["Tamano de la sombra"] = "Shadow size",
+	["Intensidad de la sombra"] = "Shadow strength",
+	["Chispa en el cast"] = "Castbar spark",
+	["Centrar sobre la cabeza"] = "Center over the head",
+	["La mitad de la barra queda justo encima de la cabeza del personaje. Desactivalo para moverla en horizontal a mano."] =
+		"The middle of the bar sits right above the character's head. Turn it off to move it horizontally yourself.",
+	["Icono de clase"] = "Class icon",
+	["Muestra el icono de la clase de los jugadores a la izquierda de la barra."] = "Shows the player's class icon on the left of the bar.",
+	["Tamano del icono de clase"] = "Class icon size",
+	["Separacion del icono de clase"] = "Class icon spacing",
+	["Sanadores"] = "Healers",
+	["Cruz verde junto al nombre de los healers. Se detectan por sus hechizos (Holy Shock, Penance, Riptide, Swiftmend...) y, si usas Gladius, tambien por su deteccion de especializacion."] =
+		"Green cross next to healers' names. They are detected by their spells (Holy Shock, Penance, Riptide, Swiftmend...) and, if you use Gladius, by its spec detection too.",
+	["Sanadores rivales"] = "Enemy healers",
+	["Sanadores de tu grupo"] = "Party healers",
+	["Tamano (rivales)"] = "Size (enemies)",
+	["Tamano (grupo)"] = "Size (party)",
+	["Mover X (rivales)"] = "Move X (enemies)",
+	["Mover X (grupo)"] = "Move X (party)",
+	["Mover Y (rivales)"] = "Move Y (enemies)",
+	["Mover Y (grupo)"] = "Move Y (party)",
+	["0 = pegado a la placa. Positivo lo aparta, negativo lo mete sobre el borde."] =
+		"0 = touching the plate. Positive moves it away, negative moves it over the border.",
+	["Linea brillante en el borde del relleno, como en la barra de Blizzard."] = "Bright line at the edge of the fill, like Blizzard's castbar.",
 
 	-- Mensajes del chat
 	["|cff66ccffHemsworkPlates|r cargado: version %s (Warmane, sin Awesome WotLK)"] =

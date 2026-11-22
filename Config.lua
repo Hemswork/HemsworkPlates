@@ -87,7 +87,6 @@ function UpdateDeps()
 	for _, d in ipairs(deps) do SetActive(d[1], d[2]() and true or false) end
 end
 local function IsClassicStyle() return SP.cfg.shape == "classic" or SP.cfg.shape == "old" end
-local function NotClassic() return not IsClassicStyle() end
 local function On(key) return function() return SP.cfg[key] end end
 
 ------------------------------ WIDGETS -----------------------------
@@ -447,7 +446,7 @@ local function TextureOptions()
 end
 
 local function ShapeOptions()
-	return { { T("Clasico WotLK"), "classic" }, { T("Antiguo (Blizzard)"), "old" }, { T("Cuadrada"), "square" }, { T("Redonda"), "round" } }
+	return { { T("Clasico WotLK"), "classic" }, { T("Antiguo (Blizzard)"), "old" } }
 end
 
 local function IconBorderOptions()
@@ -486,7 +485,20 @@ local function BuildLook(L)
 	L:Dropdown(T("Textura de la barra"), "texture", TextureOptions)
 	L:Check(T("Pixel perfect (bordes nitidos)"), "pixelPerfect",
 		"Ajusta tamanos y posiciones a pixeles exactos de tu pantalla para que los bordes se vean nitidos.")
-	Dep(L:Slider(T("Grosor del borde"), "borderSize", 0, 4, 0.5, "%.1f", "Solo en los estilos Cuadrada y Redonda."), NotClassic)
+
+	L:Header(T("Efectos"))
+	L:Check(T("Sombra suave"), "shadow",
+		"Halo oscuro difuminado alrededor de la barra para separarla del fondo. No se usa en el estilo Antiguo (marco dorado).")
+	L:Check(T("Rastro de dano"), "healthTrail",
+		"Al perder vida queda un momento un trozo claro que se encoge hasta el valor nuevo: se ve cuanto dano acaba de recibir.")
+	Dep(L:Slider(T("Tamano de la sombra"), "shadowSize", 1, 10, 1), On("shadow"))
+	Dep(L:Slider(T("Intensidad de la sombra"), "shadowAlpha", 0.1, 1, 0.05, "pct"), On("shadow"))
+
+	L:Header(T("Icono de clase"))
+	L:Check(T("Icono de clase"), "classIcon", "Muestra el icono de la clase de los jugadores a la izquierda de la barra.")
+	Dep(L:Slider(T("Tamano del icono de clase"), "classIconSize", 10, 40, 1), On("classIcon"))
+	Dep(L:Slider(T("Separacion del icono de clase"), "classIconGap", -10, 20, 1, nil,
+		"0 = pegado a la placa. Positivo lo aparta, negativo lo mete sobre el borde."), On("classIcon"))
 
 	L:Header(T("Borde de los iconos"))
 	L:Dropdown(T("Estilo del borde de iconos"), "iconBorder", IconBorderOptions,
@@ -504,7 +516,10 @@ local function BuildLook(L)
 		"De 0% (invisibles) a 99% (casi sin transparencia). Puedes escribir el valor exacto."), On("modNonTargetAlpha"))
 
 	L:Header(T("Posicion"))
-	L:Slider(T("Mover horizontal (X)"), "offsetX", -100, 100, 1)
+	L:Check(T("Centrar sobre la cabeza"), "centerPlate",
+		"La mitad de la barra queda justo encima de la cabeza del personaje. Desactivalo para moverla en horizontal a mano.")
+	L:EndRow()
+	Dep(L:Slider(T("Mover horizontal (X)"), "offsetX", -100, 100, 1), function() return not SP.cfg.centerPlate end)
 	L:Slider(T("Mover vertical (Y)"), "offsetY", -100, 100, 1)
 
 	L:Header(T("Apilado"))
@@ -522,12 +537,11 @@ local function BuildCast(L)
 	Dep(L:Check(T("Icono del hechizo"), "showCastIcon"), cast)
 	Dep(L:Check(T("Nombre del hechizo en el cast"), "showCastText"), cast)
 	Dep(L:Check(T("Tiempo restante del cast"), "showCastTime"), cast)
+	Dep(L:Check(T("Chispa en el cast"), "castSpark", "Linea brillante en el borde del relleno, como en la barra de Blizzard."), cast)
 	Dep(L:Slider(T("Alto cast bar"), "castHeight", 4, 24, 1), cast)
 	Dep(L:Slider(T("Ancho cast bar"), "castWidth", -60, 120, 1, nil, "Ancho extra del castbar (se suma a la derecha). Con 0 queda el ancho original."), cast)
 	Dep(L:Slider(T("Mover cast bar arriba/abajo"), "castY", -40, 40, 1, nil, "Positivo sube el castbar, negativo lo baja. Con 0 queda en su posicion original."), cast)
 	Dep(L:Slider(T("Tamano texto del cast"), "castFontSize", 5, 16, 1), cast)
-	Dep(L:Slider(T("Tamano icono cast"), "castIconSize", 8, 30, 1, nil, "Solo en los estilos Cuadrada y Redonda."),
-		function() return SP.cfg.showCast and NotClassic() end)
 
 	L:Header(T("Interrupciones"))
 	Dep(L:Slider(T("Tiempo de 'Interrupted' (s)"), "castInterruptHold", 0.3, 3, 0.1, "%.1f",
@@ -561,8 +575,6 @@ local function BuildTextPage(L)
 		"Calavera de Blizzard que sustituye al nivel ?? en jefes y elites sin nivel."), On("showLevel"))
 	Dep(L:Slider(T("Ancho del nombre"), "nameWidth", 50, 250, 1, nil,
 		"Ancho maximo del nombre: si no cabe se recorta con ... para que vaya siempre en una sola fila."), On("showName"))
-	Dep(L:Slider(T("Separacion del nivel"), "levelOffset", 0, 30, 1, nil, "Solo en los estilos Cuadrada y Redonda."),
-		function() return SP.cfg.showLevel and NotClassic() end)
 
 	L:Header(T("Texto de vida"))
 	L:Check(T("Mostrar texto de vida"), "showHealthText")
@@ -597,8 +609,6 @@ local function BuildColorsPage(L)
 	L:Color(T("Fondo de barra"), "bgColor")
 	L:Slider(T("Oscuridad del fondo de barra"), "bgAlpha", 0, 1, 0.01, "pct",
 		"Opacidad del interior de las barras (la parte vacia). 100% = fondo totalmente oscuro; baja el valor para verlo mas transparente.")
-	Dep(L:Color(T("Borde"), "borderColor", "Solo en los estilos Cuadrada y Redonda."), NotClassic)
-	Dep(L:Color(T("Borde del target"), "targetBorderColor", "Solo en los estilos Cuadrada y Redonda."), NotClassic)
 
 	L:Header(T("Tinte de borde"))
 	L:Note(T("Es un tinte, no un color normal: blanco deja el borde original; gris oscuro o negro lo oscurece."))
@@ -608,18 +618,7 @@ local function BuildColorsPage(L)
 	Dep(L:Color(T("Tinte de borde (no interrumpible)"), "castProtectedBorderTint", "Marco con escudo del castbar cuando el hechizo no se puede interrumpir. Solo en los estilos Clasico y Antiguo."), IsClassicStyle)
 end
 
-local function BuildHighlight(L)
-	L:Header(T("Brillo en el target"))
-	L:Check(T("Brillo en el target"), "targetGlow")
-	Dep(L:Color(T("Color brillo target"), "targetGlowColor"), On("targetGlow"))
-	Dep(L:Slider(T("Intensidad brillo target"), "targetGlowAlpha", 0.1, 1, 0.05, "%.2f"), On("targetGlow"))
-
-	L:Header(T("Brillo al pasar el raton"))
-	L:Check(T("Brillo al pasar el raton"), "hoverGlow")
-	Dep(L:Color(T("Color brillo raton"), "hoverGlowColor"), On("hoverGlow"))
-	Dep(L:Slider(T("Intensidad brillo raton"), "hoverGlowAlpha", 0.1, 1, 0.05, "%.2f"), On("hoverGlow"))
-	Dep(L:Slider(T("Tamano del brillo"), "glowSize", 2, 16, 1), function() return SP.cfg.targetGlow or SP.cfg.hoverGlow end)
-
+local function BuildTargetPage(L)
 	L:Header(T("Tu target"))
 	L:Slider(T("Escala del target"), "targetScale", 0.8, 2, 0.05, "%.2f")
 	L:Check(T("Mantener target en pantalla"), "clampTarget",
@@ -633,6 +632,17 @@ local function BuildArena(L)
 	L:Check(T("Numeros de arena (enemigos)"), "arenaIDs", "Muestra 1-5 en cada rival de arena (en rojo).")
 	L:Check(T("Numeros de grupo (aliados)"), "partyIDs", "Muestra el numero de cada companero de arena (en verde).")
 	Dep(L:Dropdown(T("Posicion del numero de arena"), "arenaIDPos", ArenaIDPosOptions), ids)
+
+	L:Header(T("Sanadores"))
+	L:Note(T("Cruz verde junto al nombre de los healers. Se detectan por sus hechizos (Holy Shock, Penance, Riptide, Swiftmend...) y, si usas Gladius, tambien por su deteccion de especializacion."))
+	L:Check(T("Sanadores rivales"), "healerEnemy")
+	L:Check(T("Sanadores de tu grupo"), "healerParty")
+	Dep(L:Slider(T("Tamano (rivales)"), "healerEnemySize", 10, 40, 1), On("healerEnemy"))
+	Dep(L:Slider(T("Tamano (grupo)"), "healerPartySize", 10, 40, 1), On("healerParty"))
+	Dep(L:Slider(T("Mover X (rivales)"), "healerEnemyX", -100, 100, 1, nil, "Positivo a la derecha, negativo a la izquierda."), On("healerEnemy"))
+	Dep(L:Slider(T("Mover X (grupo)"), "healerPartyX", -100, 100, 1, nil, "Positivo a la derecha, negativo a la izquierda."), On("healerParty"))
+	Dep(L:Slider(T("Mover Y (rivales)"), "healerEnemyY", -60, 60, 1, nil, "Positivo sube, negativo baja."), On("healerEnemy"))
+	Dep(L:Slider(T("Mover Y (grupo)"), "healerPartyY", -60, 60, 1, nil, "Positivo sube, negativo baja."), On("healerParty"))
 
 	L:Header(T("Aliados"))
 	L:Check(T("Aliados con color de clase"), "friendlyClassColor",
@@ -1409,7 +1419,7 @@ local SECTIONS = {
 	{ "Castbar", BuildCast },
 	{ "Texto", BuildTextPage },
 	{ "Colores", BuildColorsPage },
-	{ "Resaltado", BuildHighlight },
+	{ "Target", BuildTargetPage },
 	{ "Arena", BuildArena },
 	{ "Debuffs", BuildDebuffsPage },
 	{ "Hechizos", BuildSpellsPage, true }, -- true = sin desplazamiento de pagina (la lista tiene el suyo)

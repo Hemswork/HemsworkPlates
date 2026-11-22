@@ -15,12 +15,14 @@ Classic Blizzard look, pixel-perfect bars, castbars for every arena opponent, im
 ### Features
 
 **Look**
-- Four styles: **WotLK Classic** (default), **Old (Blizzard)** with the original golden frame, Square and Round.
+- Two styles: **WotLK Classic** (default) and **Old (Blizzard)** with the original golden frame.
+- **Centered over the head**: the middle of the bar sits right above the character.
+- **Soft shadow** around the bar, **damage trail** (a light segment that shrinks to the new health) and a **spark** on the castbar.
+- **Class icon** on the left of player plates.
 - **Pixel-perfect** sizes and positions for crisp borders at any resolution.
 - Class colors for enemy players and reaction colors (hostile / neutral / friendly / tapped).
 - **Friendly players in Blizzard blue** (color configurable) so allies and enemies never get mixed up in arena.
 - Name centered over the bar, level colored by difficulty.
-- Glow around your **target** and the plate under your **mouse**.
 - Health text with 6 formats: percent, percent with decimal, current, current/max, current (percent) and deficit.
 - Move the whole plate and the name freely (X / Y).
 
@@ -42,6 +44,7 @@ Classic Blizzard look, pixel-perfect bars, castbars for every arena opponent, im
 
 **PvP and utilities**
 - **Arena numbers** (1–5) next to the bar or replacing the name; red for enemies, green for your team.
+- **Healer icon**: green cross next to the name of enemy and party healers, detected by their spells (and by Gladius spec detection if you use it). Size and position set separately for enemies and party.
 - **Totems as icons**, configurable one by one (icon, hidden, normal plate or icon + plate, custom icon).
 - **Mage Mirror Images** no longer steal the mage's castbar.
 - **Friendly plates with name only**, configurable per zone.
@@ -93,12 +96,14 @@ Aspecto clásico de Blizzard, barras pixel-perfect, castbar de todos los rivales
 ### Funciones
 
 **Aspecto**
-- Cuatro estilos: **Clásico WotLK** (por defecto), **Antiguo (Blizzard)** con el marco dorado original, Cuadrado y Redondo.
+- Dos estilos: **Clásico WotLK** (por defecto) y **Antiguo (Blizzard)** con el marco dorado original.
+- **Centrada sobre la cabeza**: la mitad de la barra queda justo encima del personaje.
+- **Sombra suave** alrededor de la barra, **rastro de daño** (un trozo claro que se encoge hasta la vida nueva) y **chispa** en el castbar.
+- **Icono de clase** a la izquierda de las placas de jugadores.
 - Tamaños y posiciones **pixel-perfect** para bordes nítidos en cualquier resolución.
 - Color de clase en jugadores enemigos y de reacción (hostil / neutral / amistoso / tapeado).
 - **Jugadores aliados en el azul de Blizzard** (color configurable), para no confundir aliados y enemigos en arena.
 - Nombre centrado sobre la barra y nivel coloreado por dificultad.
-- Brillo alrededor de tu **target** y de la placa bajo el **ratón**.
 - Texto de vida con 6 formatos: porcentaje, porcentaje con decimal, actual, actual/máx, actual (%) y déficit.
 - Puedes mover la placa entera y el nombre libremente (X / Y).
 
@@ -120,6 +125,7 @@ Aspecto clásico de Blizzard, barras pixel-perfect, castbar de todos los rivales
 
 **PvP y utilidades**
 - **Números de arena** (1–5) junto a la barra o en lugar del nombre; rojo para enemigos y verde para tu equipo.
+- **Icono de sanador**: cruz verde junto al nombre de los healers rivales y de tu grupo, detectados por sus hechizos (y por la detección de especialización de Gladius si lo usas). Tamaño y posición por separado para rivales y grupo.
 - **Tótems como icono**, configurables uno a uno (icono, oculto, placa normal o icono + placa, icono propio).
 - Las **imágenes del mago** (Mirror Image) ya no se quedan con su castbar.
 - **Aliados solo con nombre**, configurable por zona.
