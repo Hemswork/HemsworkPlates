@@ -344,8 +344,8 @@ function SP.UpdateGCDs(active)
 					f.sweep:Show()
 				end
 				if cfg.gcdTimer then
-					local s = string.format("%.1f", left)
-					if f.lastText ~= s then f.lastText = s; f.text:SetText(s) end
+					local t = floor(left * 10 + 0.5)
+					if f.lastText ~= t then f.lastText = t; f.text:SetText(string.format("%.1f", t / 10)) end
 					f.text:Show()
 				else
 					f.text:Hide()

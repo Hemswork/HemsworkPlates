@@ -12,15 +12,14 @@ local function T(s) return SP.T and SP.T(s) or s end
 local defaults = {
 	language = "auto", -- "auto" (segun el cliente), "es" o "en"
 	shape = "classic", -- "classic" o "old" (el marco dorado de siempre)
-	width = 120, height = 11, castHeight = 14, castExtraWidth = 0, castY = 0, castWidth = 0, scale = 1,
-	borderSize = 1.5, levelOffset = 8,
+	width = 120, height = 11, castHeight = 14, castY = 0, castWidth = 0, scale = 1,
 	pixelPerfect = true,
 
 	font = "Fonts\\FRIZQT__.TTF", fontSize = 11, fontOutline = "",
 	texture = "Interface\\TargetingFrame\\UI-StatusBar",
 
 	showName = true, showLevel = true, showHealthText = false,
-	showCast = true, showCastIcon = true, showCastTime = true, showCastText = true, castIconSize = 14,
+	showCast = true, showCastIcon = true, showCastTime = true, showCastText = true,
 	castFontSize = 8, -- letra del texto del cast
 
 	-- opacidad de las placas que no son tu target, como en RefinedBlizzPlates (0-99%)
@@ -73,9 +72,6 @@ local defaults = {
 	bgAlpha           = 0.85, -- opacidad del fondo de la barra
 	iconBorder = "blizzard", -- "blizzard" (plateado) o "flat" (linea negra)
 	iconBorderTint = { 1, 1, 1 },
-	borderColor       = { 0, 0, 0, 1 },
-	targetBorderColor = { 1, 1, 1, 0.9 },
-	hoverBorderColor  = { 1, 1, 1, 0.5 },
 	castColor         = { 1, 0.7, 0 },
 	castNoInterruptColor = { 0.6, 0.6, 0.6 },
 	-- cast cortado: se queda en rojo con "Interrupted: fulano"
@@ -149,7 +145,6 @@ local UpdatePlate, UpdateCast
 local FALLBACK_FONT = "Fonts\\FRIZQT__.TTF"
 local RAID_ICONS = "Interface\\TargetingFrame\\UI-RaidTargetingIcons"
 local FLAT = "Interface\\Buttons\\WHITE8X8"
-local CAP = "Interface\\AddOns\\" .. addonName .. "\\Media\\cap.tga"
 
 -- Texturas originales de las nameplates de WotLK
 local HP_BORDER   = "Interface\\Tooltips\\Nameplate-Border"
@@ -510,52 +505,25 @@ local function CaptureGeo(plate)
 end
 
 ------------------------- "PILDORAS" (barras) ----------------------
--- pildora: tapa izq + centro + tapa der (sin redondeo, solo el centro)
+-- un frame con una textura que lo llena (fondo, relleno, contorno...)
 local function NewPill(parent, level)
 	local f = CreateFrame("Frame", nil, parent)
 	f:SetFrameLevel(parent:GetFrameLevel() + level)
 	local p = { f = f }
-	p.l = f:CreateTexture(nil, "ARTWORK")
-	p.l:SetTexture(CAP)
-	p.r = f:CreateTexture(nil, "ARTWORK")
-	p.r:SetTexture(CAP)
-	p.r:SetTexCoord(1, 0, 0, 1)
 	p.m = f:CreateTexture(nil, "ARTWORK")
 	p.m:SetTexture(FLAT)
+	p.m:SetAllPoints(f)
 	return p
 end
 
-local function LayoutPill(p, h, round, midTex)
-	p.m:SetTexture(midTex or FLAT)
-	p.m:ClearAllPoints()
-	if round then
-		local cw = h / 2
-		p.l:SetWidth(cw); p.l:SetHeight(h)
-		p.l:ClearAllPoints(); p.l:SetPoint("LEFT", p.f, "LEFT", 0, 0)
-		p.r:SetWidth(cw); p.r:SetHeight(h)
-		p.r:ClearAllPoints(); p.r:SetPoint("RIGHT", p.f, "RIGHT", 0, 0)
-		p.m:SetPoint("TOPLEFT", p.l, "TOPRIGHT", 0, 0)
-		p.m:SetPoint("BOTTOMRIGHT", p.r, "BOTTOMLEFT", 0, 0)
-		p.l:Show(); p.r:Show()
-	else
-		p.l:Hide(); p.r:Hide()
-		p.m:SetAllPoints(p.f)
-	end
-end
-
 local function ColorPill(p, r, g, b, a)
-	a = a or 1
-	p.l:SetVertexColor(r, g, b, a)
-	p.m:SetVertexColor(r, g, b, a)
-	p.r:SetVertexColor(r, g, b, a)
+	p.m:SetVertexColor(r, g, b, a or 1)
 end
 
-local function SetFill(p, w, h, pct, round)
+local function SetFill(p, w, pct)
 	if not pct or pct ~= pct or pct <= 0 then p.f:Hide() return end
 	if pct > 1 then pct = 1 end
-	local fw = w * pct
-	if round and fw < h then fw = h end
-	p.f:SetWidth(fw)
+	p.f:SetWidth(w * pct)
 	p.f:Show()
 end
 
@@ -592,23 +560,10 @@ local function LayoutShadow(owner, o, s, on)
 	owner.shf:Show()
 end
 
--- Contorno + fondo + relleno sobre "owner"
+-- fondo + relleno sobre "owner" (vida y cast)
 local function BuildBarParts(owner)
-	owner.outline = NewPill(owner, 1)
 	owner.bgp = NewPill(owner, 2)
 	owner.fillp = NewPill(owner, 4)
-	-- sombra por fuera del contorno, debajo de todo
-	owner.shf = CreateFrame("Frame", nil, owner)
-	owner.shf:SetAllPoints(owner)
-	owner.shf:SetFrameLevel(owner:GetFrameLevel())
-	owner.sh = {}
-	for i, tc in ipairs(SHADOW_COORDS) do
-		local t = owner.shf:CreateTexture(nil, "BACKGROUND")
-		t:SetTexture(SHADOW)
-		t:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
-		owner.sh[i] = t
-	end
-	owner.shf:Hide()
 	-- capa del borde clasico: encima del relleno, debajo del texto
 	owner.cl = CreateFrame("Frame", nil, owner)
 	owner.cl:SetAllPoints(owner)
@@ -617,22 +572,14 @@ local function BuildBarParts(owner)
 	owner.border:Hide()
 end
 
-local function StyleBarParts(owner, h, round, bs, tex)
-	LayoutPill(owner.outline, h + 2 * bs, round)
-	owner.outline.f:ClearAllPoints()
-	owner.outline.f:SetPoint("TOPLEFT", owner, "TOPLEFT", -bs, bs)
-	owner.outline.f:SetPoint("BOTTOMRIGHT", owner, "BOTTOMRIGHT", bs, -bs)
-	if bs > 0 then owner.outline.f:Show() else owner.outline.f:Hide() end
-	ColorPill(owner.outline, unpack(cfg.borderColor))
-
-	LayoutPill(owner.bgp, h, round)
+local function StyleBarParts(owner, h, tex)
 	owner.bgp.f:ClearAllPoints()
 	owner.bgp.f:SetAllPoints(owner)
 	owner.bgp.f:Show()
 	local bg = cfg.bgColor
 	ColorPill(owner.bgp, bg[1], bg[2], bg[3], cfg.bgAlpha or bg[4])
 
-	LayoutPill(owner.fillp, h, round, tex)
+	owner.fillp.m:SetTexture(tex)
 	owner.fillp.f:ClearAllPoints()
 	owner.fillp.f:SetPoint("LEFT", owner, "LEFT", 0, 0)
 	owner.fillp.f:SetHeight(h)
@@ -709,22 +656,18 @@ local function Restyle(plate)
 	-- perfiles viejos con Cuadrada/Redonda pasan a Clasico
 	if cfg.shape ~= "old" and cfg.shape ~= "classic" then cfg.shape = "classic" end
 	local old = cfg.shape == "old"
-	local classic = cfg.shape == "classic" or old
-	local round = cfg.shape == "round"
 	local fs, outline = cfg.fontSize, cfg.fontOutline
 
 	sp:SetScale(cfg.scale * (sp.scaleMul or 1))
 	local px = PixelUnit(sp)
 	sp.px = px
-	sp.classic = classic
 
 	local w, h, ch = SnapSize(cfg.width, px), SnapSize(cfg.height, px), SnapSize(cfg.castHeight, px)
-	local bs = cfg.borderSize > 0 and SnapSize(cfg.borderSize, px) or 0
 	sp:SetWidth(w)
 	sp:SetHeight(h)
 	sp.fw = w
-	StyleBarParts(sp, h, round, bs, cfg.texture)
-	LayoutPill(sp.trail, h, round, cfg.texture)
+	StyleBarParts(sp, h, cfg.texture)
+	sp.trail.m:SetTexture(cfg.texture)
 	sp.trail.f:ClearAllPoints()
 	sp.trail.f:SetPoint("LEFT", sp, "LEFT", 0, 0)
 	sp.trail.f:SetHeight(h)
@@ -751,148 +694,100 @@ local function Restyle(plate)
 	sp.raid:SetWidth(16)
 	sp.raid:SetHeight(16)
 
-	local isz = cfg.castIconSize
 	cb:ClearAllPoints()
 	cb:SetHeight(ch)
 	cb.icon:ClearAllPoints()
 	cb.text:ClearAllPoints()
 	cb.time:ClearAllPoints()
 
-	if classic then
-		local one = SnapSize(1, px)
-		local oldGap = 0
-		sp.inner.f:Hide()
-		if old then
-			-- marco dorado original (Nameplate-Border 128x32) con las medidas de la placa
-			-- nativa: barra de 102.91x8.99 en x=3.97 y=4, nivel a 9.15 del final.
-			-- Son las mismas que usa RefinedBlizzPlates
-			local sx, sy = w / 102.91, h / 8.99
-			sp.outline.f:Hide()
-			sp.border:SetTexture(HP_BORDER)
-			local bt = cfg.borderTint
-			sp.border:SetVertexColor(bt[1], bt[2], bt[3], 1)
-			sp.border:ClearAllPoints()
-			sp.border:SetWidth(SnapSize(128 * sx, px))
-			sp.border:SetHeight(SnapSize(32 * sy, px))
-			sp.border:SetPoint("BOTTOMLEFT", sp, "BOTTOMLEFT", Snap(-3.968 * sx, px), Snap(-4 * sy, px))
-			sp.border:Show()
-
-			sp.name:ClearAllPoints()
-			sp.name:SetPoint("CENTER", sp, "CENTER", Snap(cfg.nameX, px), Snap(7.5 * sy + fs * 0.5 + cfg.nameY, px))
-			sp.name:SetJustifyH("CENTER")
-			sp.name:SetWidth(cfg.nameWidth + 6)
-			sp.level:ClearAllPoints()
-			sp.level:SetPoint("CENTER", sp, "RIGHT", Snap(9.15 * sx, px), Snap(0.57 * sy, px))
-			oldGap = Snap(4 * sy, px) -- el marco dorado baja ~4 por debajo de la barra
-		else
-			-- vida con borde negro de 1px, como en WotLK Classic
-			sp.border:Hide()
-			LayoutPill(sp.outline, h, false)
-			sp.outline.f:ClearAllPoints()
-			sp.outline.f:SetPoint("TOPLEFT", sp, "TOPLEFT", -one, one)
-			sp.outline.f:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", one, -one)
-			ColorPill(sp.outline, 0, 0, 0, 1)
-			sp.outline.f:Show()
-
-			sp.name:ClearAllPoints()
-			sp.name:SetPoint("BOTTOM", sp, "TOP", Snap(cfg.nameX, px), one + Snap(2 + cfg.nameY, px))
-			sp.name:SetJustifyH("CENTER")
-			sp.name:SetWidth(cfg.nameWidth + 6)
-			sp.level:ClearAllPoints()
-			sp.level:SetPoint("LEFT", sp, "RIGHT", one + Snap(4, px), 0)
-		end
-
-		-- cast con el marco plateado de Blizzard (el del target) a su proporcion
-		-- original: barra 150x10, borde 197x49 anclado TOP +20, icono 16x16 a 5.
-		-- Empieza donde la vida y llega hasta debajo del nivel,
-		-- igual que en la captura de referencia
-		local reach = SnapSize(one + 4 + fs * 1.1, px)
-		-- castWidth puede ser negativo, pero sin bajar del minimo
-		local extraW = tonumber(cfg.castWidth) or 0
-		if w + reach + extraW < 40 then extraW = 40 - w - reach end
-		reach = reach + extraW
-		local cw = w + reach
-		local fx, fy = cw / 150, ch / 10
-		local cy = tonumber(cfg.castY) or 0 -- mover el castbar arriba (+) / abajo (-)
-		cb:SetPoint("TOPLEFT", sp, "BOTTOMLEFT", 0, -Snap(one + 4 + 3 * fy, px) - oldGap + Snap(cy, px))
-		cb:SetPoint("TOPRIGHT", sp, "BOTTOMRIGHT", reach, -Snap(one + 4 + 3 * fy, px) - oldGap + Snap(cy, px))
-		cb.fw = cw
-		StyleBarParts(cb, ch, false, 0, CAST_FILL)
-		cb.inner.f:Hide()
-
-		for _, t in ipairs({ cb.border, cb.shield }) do
-			t:ClearAllPoints()
-			t:SetWidth(SnapSize(197 * fx, px))
-			t:SetHeight(SnapSize(49 * fy, px))
-			t:SetPoint("TOP", cb, "TOP", 0, Snap(20 * fy, px))
-		end
-		cb.border:SetTexture(CAST_BORDER)
-		cb.shield:SetTexture(CAST_SHIELD)
-		local cbt, cpt = cfg.castBorderTint, cfg.castProtectedBorderTint
-		cb.border:SetVertexColor(cbt[1], cbt[2], cbt[3], 1)
-		cb.shield:SetVertexColor(cpt[1], cpt[2], cpt[3], 1)
-		cb.border:Show()
-		cb.shield:Hide()
-
-		cb.spark:SetWidth(SnapSize(32 * fy, px))
-		cb.spark:SetHeight(SnapSize(32 * fy, px))
-
-		isz = SnapSize(16 * fy, px)
-		-- icono pegado al marco con su borde negro
-		cb.icon:SetPoint("RIGHT", cb, "LEFT", -Snap(2.5 * fy, px), 0)
-		cb.iconEdge:SetAlpha(1)
-		cb.iconEdge:ClearAllPoints()
-		cb.iconEdge:SetPoint("TOPLEFT", cb.icon, "TOPLEFT", -one, one)
-		cb.iconEdge:SetPoint("BOTTOMRIGHT", cb.icon, "BOTTOMRIGHT", one, -one)
-		cb.iconEdge:SetTexture(0, 0, 0, 1)
-		SP.StyleIconBorder(cb.ico, cb.icon, cb.iconEdge, isz, px)
-
-		cb.text:SetPoint("CENTER", cb, "CENTER", 0, 0)
-		cb.text:SetWidth(cw - 2 * (cfs * 2 + 4))
-		cb.time:SetPoint("RIGHT", cb, "RIGHT", -2, 0)
-	else
-		sp.border:Hide()
-		cb.border:Hide()
-		cb.shield:Hide()
-		cb.inner.f:Hide()
-		sp.inner.f:Hide()
-		-- chispa a la proporcion de Blizzard (32 para una barra de 10)
-		cb.spark:SetWidth(SnapSize(3.2 * ch, px))
-		cb.spark:SetHeight(SnapSize(3.2 * ch, px))
-		cb.spark:Hide()
+	local one = SnapSize(1, px)
+	local oldGap = 0
+	if old then
+		-- marco dorado original (Nameplate-Border 128x32) con las medidas de la placa
+		-- nativa: barra de 102.91x8.99 en x=3.97 y=4, nivel a 9.15 del final.
+		-- Son las mismas que usa RefinedBlizzPlates
+		local sx, sy = w / 102.91, h / 8.99
+		sp.outline.f:Hide()
+		sp.border:SetTexture(HP_BORDER)
+		local bt = cfg.borderTint
+		sp.border:SetVertexColor(bt[1], bt[2], bt[3], 1)
+		sp.border:ClearAllPoints()
+		sp.border:SetWidth(SnapSize(128 * sx, px))
+		sp.border:SetHeight(SnapSize(32 * sy, px))
+		sp.border:SetPoint("BOTTOMLEFT", sp, "BOTTOMLEFT", Snap(-3.968 * sx, px), Snap(-4 * sy, px))
+		sp.border:Show()
 
 		sp.name:ClearAllPoints()
-		sp.name:SetPoint("BOTTOM", sp, "TOP", Snap(cfg.nameX, px), Snap(3 + cfg.nameY, px))
+		sp.name:SetPoint("CENTER", sp, "CENTER", Snap(cfg.nameX, px), Snap(7.5 * sy + fs * 0.5 + cfg.nameY, px))
 		sp.name:SetJustifyH("CENTER")
+		sp.name:SetWidth(cfg.nameWidth + 6)
 		sp.level:ClearAllPoints()
-		sp.level:SetPoint("LEFT", sp, "RIGHT", Snap(cfg.levelOffset, px) + bs, 0)
+		sp.level:SetPoint("CENTER", sp, "RIGHT", Snap(9.15 * sx, px), Snap(0.57 * sy, px))
+		oldGap = Snap(4 * sy, px) -- el marco dorado baja ~4 por debajo de la barra
+	else
+		-- vida con borde negro de 1px, como en WotLK Classic
+		sp.border:Hide()
+		sp.outline.f:ClearAllPoints()
+		sp.outline.f:SetPoint("TOPLEFT", sp, "TOPLEFT", -one, one)
+		sp.outline.f:SetPoint("BOTTOMRIGHT", sp, "BOTTOMRIGHT", one, -one)
+		ColorPill(sp.outline, 0, 0, 0, 1)
+		sp.outline.f:Show()
 
-		-- icono + barra = ancho de la placa
-		isz = SnapSize(isz, px)
-		local gap = Snap(2 * bs + 2, px)
-		local iw = cfg.showCastIcon and (isz + gap) or 0
-		local extraW = tonumber(cfg.castWidth) or 0
-		if w - iw + extraW < 20 then extraW = 20 - (w - iw) end
-		local cy = tonumber(cfg.castY) or 0
-		cb:SetPoint("TOPLEFT", sp, "BOTTOMLEFT", iw, Snap(-4, px) - bs + Snap(cy, px))
-		cb:SetPoint("TOPRIGHT", sp, "BOTTOMRIGHT", extraW, Snap(-4, px) - bs + Snap(cy, px))
-		cb.fw = w - iw + extraW
-		StyleBarParts(cb, ch, round, bs, cfg.texture)
-
-		cb.icon:SetPoint("RIGHT", cb, "LEFT", -gap, 0)
-		cb.iconEdge:SetAlpha(1)
-		cb.iconEdge:ClearAllPoints()
-		local ie = math.max(px, bs)
-		cb.iconEdge:SetPoint("TOPLEFT", cb.icon, "TOPLEFT", -ie, ie)
-		cb.iconEdge:SetPoint("BOTTOMRIGHT", cb.icon, "BOTTOMRIGHT", ie, -ie)
-		cb.iconEdge:SetTexture(unpack(cfg.borderColor))
-		cb.ico.silverOn = false
-		if cb.ico.silver then cb.ico.silver:Hide() end
-
-		cb.text:SetPoint("LEFT", cb, "LEFT", 3 + (round and ch / 2 or 0), 0)
-		cb.text:SetWidth(0)
-		cb.time:SetPoint("RIGHT", cb, "RIGHT", -3 - (round and ch / 2 or 0), 0)
+		sp.name:ClearAllPoints()
+		sp.name:SetPoint("BOTTOM", sp, "TOP", Snap(cfg.nameX, px), one + Snap(2 + cfg.nameY, px))
+		sp.name:SetJustifyH("CENTER")
+		sp.name:SetWidth(cfg.nameWidth + 6)
+		sp.level:ClearAllPoints()
+		sp.level:SetPoint("LEFT", sp, "RIGHT", one + Snap(4, px), 0)
 	end
+
+	-- cast con el marco plateado de Blizzard (el del target) a su proporcion
+	-- original: barra 150x10, borde 197x49 anclado TOP +20, icono 16x16 a 5.
+	-- Empieza donde la vida y llega hasta debajo del nivel,
+	-- igual que en la captura de referencia
+	local reach = SnapSize(one + 4 + fs * 1.1, px)
+	-- castWidth puede ser negativo, pero sin bajar del minimo
+	local extraW = tonumber(cfg.castWidth) or 0
+	if w + reach + extraW < 40 then extraW = 40 - w - reach end
+	reach = reach + extraW
+	local cw = w + reach
+	local fx, fy = cw / 150, ch / 10
+	local cy = tonumber(cfg.castY) or 0 -- mover el castbar arriba (+) / abajo (-)
+	cb:SetPoint("TOPLEFT", sp, "BOTTOMLEFT", 0, -Snap(one + 4 + 3 * fy, px) - oldGap + Snap(cy, px))
+	cb:SetPoint("TOPRIGHT", sp, "BOTTOMRIGHT", reach, -Snap(one + 4 + 3 * fy, px) - oldGap + Snap(cy, px))
+	cb.fw = cw
+	StyleBarParts(cb, ch, CAST_FILL)
+
+	for _, t in ipairs({ cb.border, cb.shield }) do
+		t:ClearAllPoints()
+		t:SetWidth(SnapSize(197 * fx, px))
+		t:SetHeight(SnapSize(49 * fy, px))
+		t:SetPoint("TOP", cb, "TOP", 0, Snap(20 * fy, px))
+	end
+	cb.border:SetTexture(CAST_BORDER)
+	cb.shield:SetTexture(CAST_SHIELD)
+	local cbt, cpt = cfg.castBorderTint, cfg.castProtectedBorderTint
+	cb.border:SetVertexColor(cbt[1], cbt[2], cbt[3], 1)
+	cb.shield:SetVertexColor(cpt[1], cpt[2], cpt[3], 1)
+	cb.border:Show()
+	cb.shield:Hide()
+
+	cb.spark:SetWidth(SnapSize(32 * fy, px))
+	cb.spark:SetHeight(SnapSize(32 * fy, px))
+
+	local isz = SnapSize(16 * fy, px)
+	-- icono pegado al marco con su borde negro
+	cb.icon:SetPoint("RIGHT", cb, "LEFT", -Snap(2.5 * fy, px), 0)
+	cb.iconEdge:SetAlpha(1)
+	cb.iconEdge:ClearAllPoints()
+	cb.iconEdge:SetPoint("TOPLEFT", cb.icon, "TOPLEFT", -one, one)
+	cb.iconEdge:SetPoint("BOTTOMRIGHT", cb.icon, "BOTTOMRIGHT", one, -one)
+	cb.iconEdge:SetTexture(0, 0, 0, 1)
+	SP.StyleIconBorder(cb.ico, cb.icon, cb.iconEdge, isz, px)
+
+	cb.text:SetPoint("CENTER", cb, "CENTER", 0, 0)
+	cb.text:SetWidth(cw - 2 * (cfs * 2 + 4))
+	cb.time:SetPoint("RIGHT", cb, "RIGHT", -2, 0)
 	cb.icon:SetWidth(isz)
 	cb.icon:SetHeight(isz)
 
@@ -913,10 +808,8 @@ local function Restyle(plate)
 	else sp.boss:SetPoint("LEFT", sp.level, "LEFT", 0, 0) end
 
 	-- grosor del contorno (lo usan la sombra y lo que va a los lados)
-	local o = (classic and SnapSize(1, px)) or bs
-	local shs = SnapSize(cfg.shadowSize or 4, px)
-	LayoutShadow(sp, o, shs, cfg.shadow and not old)
-	LayoutShadow(cb, bs, shs, cfg.shadow and not classic)
+	local o = one
+	LayoutShadow(sp, o, SnapSize(cfg.shadowSize or 4, px), cfg.shadow and not old)
 
 	-- Icono de totem
 	-- con placa + icono la escala del totem tambien encoge el icono, se compensa
@@ -967,6 +860,7 @@ local function Restyle(plate)
 	sp.auraDirty = true
 
 	sp.cr, sp.castNI, sp.lvlStr, sp.nameStr = nil, nil, nil, nil
+	cb.lastSpell, cb.lastIcon, cb.lastT = nil, nil, nil
 	sp.healPos = nil -- que la cruz se recoloque con el tamano nuevo
 	sp.idStr = false -- false y no nil, si no el numero viejo se queda puesto
 	SP.ApplyMode(sp, sp.mode or "normal")
@@ -975,7 +869,7 @@ end
 -- modos: "normal", "barless" (solo nombre), "totem" o "hidden"
 function SP.ApplyMode(sp, mode)
 	if mode ~= "normal" then
-		sp.barParts = sp.barParts or { sp.outline.f, sp.bgp.f, sp.fillp.f, sp.inner.f, sp.cast, sp.shf, sp.trail.f, sp.cls }
+		sp.barParts = sp.barParts or { sp.outline.f, sp.bgp.f, sp.fillp.f, sp.cast, sp.shf, sp.trail.f, sp.cls }
 		for _, f in ipairs(sp.barParts) do f:Hide() end
 		if sp.debuff then sp.debuff:Hide() end
 		if sp.gcdFrame then sp.gcdFrame:Hide() end
@@ -1009,10 +903,22 @@ local function Build(plate)
 	sp:SetPoint("CENTER", plate, "CENTER", 0, 0)
 	sp.curOff = 0
 	BuildBarParts(sp)
+	-- contorno de 1px (solo la vida; el cast lleva el marco plateado)
+	sp.outline = NewPill(sp, 1)
 	sp.trail = NewPill(sp, 3)
 	sp.trail.f:Hide()
-	sp.inner = NewPill(sp, 2)
-	sp.inner.f:Hide()
+	-- sombra por fuera del contorno, debajo de todo
+	sp.shf = CreateFrame("Frame", nil, sp)
+	sp.shf:SetAllPoints(sp)
+	sp.shf:SetFrameLevel(sp:GetFrameLevel())
+	sp.sh = {}
+	for i, tc in ipairs(SHADOW_COORDS) do
+		local t = sp.shf:CreateTexture(nil, "BACKGROUND")
+		t:SetTexture(SHADOW)
+		t:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
+		sp.sh[i] = t
+	end
+	sp.shf:Hide()
 
 	-- Capa superior para textos e iconos
 	sp.top = CreateFrame("Frame", nil, sp)
@@ -1072,9 +978,6 @@ local function Build(plate)
 	cb:SetPoint("TOPLEFT", sp, "BOTTOMLEFT", 0, -4)
 	cb:SetPoint("TOPRIGHT", sp, "BOTTOMRIGHT", 0, -4)
 	BuildBarParts(cb)
-	-- fondo oscuro dentro del marco clasico
-	cb.inner = NewPill(cb, 2)
-	cb.inner.f:Hide()
 	cb.shield = cb.cl:CreateTexture(nil, "ARTWORK")
 	cb.shield:Hide()
 	cb.spark = cb.cl:CreateTexture(nil, "OVERLAY")
@@ -1334,7 +1237,7 @@ local function StopTrail(sp)
 	sp.trail.f:Hide()
 end
 
-local function UpdateTrail(sp, pct, round)
+local function UpdateTrail(sp, pct)
 	if not cfg.healthTrail or not pct or pct ~= pct then StopTrail(sp) return end
 	if pct > 1 then pct = 1 elseif pct < 0 then pct = 0 end
 	local tp = sp.trailPct
@@ -1347,13 +1250,13 @@ local function UpdateTrail(sp, pct, round)
 	-- golpe nuevo: espera un poco antes de encoger
 	if not sp.trailTarget or pct < sp.trailTarget then sp.trailHold = GetTime() + TRAIL_HOLD end
 	sp.trailTarget = pct
-	SetFill(sp.trail, sp.fw, cfg.height, tp, round)
+	SetFill(sp.trail, sp.fw, tp)
 	trailing[sp] = true
 end
 
 local function StepTrails(dt)
 	if not next(trailing) then return end
-	local now, round = GetTime(), cfg.shape == "round"
+	local now = GetTime()
 	local k = math.exp(-dt * TRAIL_SPEED)
 	for sp in pairs(trailing) do
 		if sp.mode ~= "normal" or not sp.trailTarget then
@@ -1366,7 +1269,7 @@ local function StepTrails(dt)
 				sp.trailPct = target
 			else
 				sp.trailPct = tp
-				SetFill(sp.trail, sp.fw, cfg.height, tp, round)
+				SetFill(sp.trail, sp.fw, tp)
 			end
 		end
 	end
@@ -1453,7 +1356,6 @@ function UpdatePlate(plate)
 	perf.update = perf.update + 1
 	local sp = plate.sp
 	if not sp or not active[plate] then return end
-	local round = cfg.shape == "round"
 	local name = NativeName(plate)
 	local isTarget = IsTargetPlate(plate, name) and true or false
 	local hover = IsHoverPlate(plate)
@@ -1553,8 +1455,8 @@ function UpdatePlate(plate)
 		else
 			hpv, hpm = NativeHealth(plate)
 		end
-		SetFill(sp.fillp, sp.fw, cfg.height, hpv / hpm, round)
-		UpdateTrail(sp, hpv / hpm, round)
+		SetFill(sp.fillp, sp.fw, hpv / hpm)
+		UpdateTrail(sp, hpv / hpm)
 		if cfg.showHealthText then sp.hp:SetText(HealthString(hpv, hpm)) end
 
 		-- Color
@@ -1592,14 +1494,12 @@ function UpdatePlate(plate)
 			local skull = lt == "??"
 			sp.level:SetText(skull and "" or lt)
 			Toggle(sp.boss, skull and cfg.showLevel)
-			if sp.classic then
-				-- Nivel coloreado por dificultad, como el original
-				if lvl and lvl > 0 and DiffColor then
-					local c = DiffColor(lvl)
-					sp.level:SetTextColor(c.r, c.g, c.b)
-				else
-					sp.level:SetTextColor(1, 0.1, 0.1)
-				end
+			-- Nivel coloreado por dificultad, como el original
+			if lvl and lvl > 0 and DiffColor then
+				local c = DiffColor(lvl)
+				sp.level:SetTextColor(c.r, c.g, c.b)
+			else
+				sp.level:SetTextColor(1, 0.1, 0.1)
 			end
 		end
 
@@ -1636,7 +1536,6 @@ function UpdateCast(plate)
 	perf.cast = perf.cast + 1
 	local sp, unit = plate.sp, plate.spUnit
 	if not sp or sp.mode ~= "normal" then return end
-	local round = cfg.shape == "round"
 	local cb = sp.cast
 	if not cfg.showCast then cb:Hide(); sp.casting = false return end
 	-- Clon de mago: sin castbar
@@ -1657,6 +1556,7 @@ function UpdateCast(plate)
 		end
 		sp.intUntil = nil
 		sp.castNI = nil -- recolorear el siguiente cast
+		cb.lastSpell = nil -- y volver a poner su nombre
 		cb:SetAlpha(1)
 		Toggle(cb.text, cfg.showCastText)
 	end
@@ -1698,18 +1598,16 @@ function UpdateCast(plate)
 		end
 	end
 	if pct then
-		SetFill(cb.fillp, cb.fw, cfg.castHeight, pct, round)
+		SetFill(cb.fillp, cb.fw, pct)
 
 		local ni = (a8 == true) or (a9 == true)
 		if sp.castNI ~= ni then
 			sp.castNI = ni
 			local c = ni and cfg.castNoInterruptColor or cfg.castColor
 			ColorPill(cb.fillp, c[1], c[2], c[3], 1)
-			if sp.classic then
-				-- Escudo original cuando no se puede interrumpir
-				Toggle(cb.border, not ni)
-				Toggle(cb.shield, ni)
-			end
+			-- Escudo original cuando no se puede interrumpir
+			Toggle(cb.border, not ni)
+			Toggle(cb.shield, ni)
 			cb.icon:SetDesaturated(ni)
 		end
 		if cfg.castSpark and pct > 0 and pct < 1 then
@@ -1719,15 +1617,17 @@ function UpdateCast(plate)
 		else
 			cb.spark:Hide()
 		end
-		cb.text:SetText(spell)
+		-- esto corre cada frame mientras castea: solo se toca lo que cambia
+		if cb.lastSpell ~= spell then cb.lastSpell = spell; cb.text:SetText(spell) end
 		if cfg.showCastTime and left then
-			cb.time:SetText(string.format("%.1f", math.max(0, left)))
+			local t = math.floor(math.max(0, left) * 10 + 0.5)
+			if cb.lastT ~= t then cb.lastT = t; cb.time:SetText(string.format("%.1f", t / 10)) end
 			cb.time:Show()
 		else
 			cb.time:Hide()
 		end
 		if cfg.showCastIcon and icon then
-			cb.icon:SetTexture(icon)
+			if cb.lastIcon ~= icon then cb.lastIcon = icon; cb.icon:SetTexture(icon) end
 			cb.icon:Show(); cb.iconEdge:Show()
 			if cb.ico.silver and cb.ico.silverOn then cb.ico.silver:Show() end
 		else
@@ -1762,10 +1662,9 @@ function SP.ShowInterrupt(plate, who)
 	cb.spark:Hide()
 	cb.time:Hide()
 	cb.icon:SetDesaturated(false)
-	if sp.classic then
-		cb.border:Show()
-		cb.shield:Hide()
-	end
+	cb.border:Show()
+	cb.shield:Hide()
+	cb.lastSpell = nil
 	cb.text:SetText((who and cfg.showInterrupter) and (INTERRUPTED .. ": " .. who) or INTERRUPTED)
 	cb.text:Show()
 	cb:SetAlpha(1)
@@ -1807,6 +1706,15 @@ local function OffsetX()
 	return cfg.offsetX
 end
 
+-- recoloca la placa solo si el desplazamiento cambio (antes era cada frame)
+local function Place(sp, plate, oy)
+	local x, y = SnapOffset(sp, plate, ClampTop(sp, plate, oy), OffsetX())
+	if sp.posX ~= x or sp.posY ~= y then
+		sp.posX, sp.posY = x, y
+		sp:SetPoint("CENTER", plate, "CENTER", x, y)
+	end
+end
+
 local list = {}
 local function byY(a, b) return a.y < b.y end
 
@@ -1844,7 +1752,7 @@ local function Restack(dt)
 		local cur = a.sp.curOff
 		cur = cur + (goal - cur) * k
 		a.sp.curOff = cur
-		a.sp:SetPoint("CENTER", a.plate, "CENTER", SnapOffset(a.sp, a.plate, ClampTop(a.sp, a.plate, cur + cfg.offsetY), OffsetX()))
+		Place(a.sp, a.plate, cur + cfg.offsetY)
 	end
 end
 
@@ -1854,7 +1762,7 @@ local function Position(dt)
 	else
 		for plate, sp in pairs(active) do
 			sp.curOff = 0
-			sp:SetPoint("CENTER", plate, "CENTER", SnapOffset(sp, plate, ClampTop(sp, plate, cfg.offsetY), OffsetX()))
+			Place(sp, plate, cfg.offsetY)
 		end
 	end
 end
@@ -1947,6 +1855,7 @@ local function OnPlateShow(plate)
 		Restyle(plate)
 	end
 	sp:SetPoint("CENTER", plate, "CENTER", 0, 0)
+	sp.posX, sp.posY = 0, 0
 	active[plate] = sp
 	sp:Show()
 	UpdatePlate(plate)
@@ -2121,7 +2030,9 @@ function OnEvent(self, event, arg1)
 		-- y las del resaltado, que quite en la 1.2.2
 		for _, k in ipairs({ "targetGlow", "targetGlowColor", "targetGlowAlpha", "hoverGlow",
 			"hoverGlowColor", "hoverGlowAlpha", "glowSize",
-			"petStyle", "petScale", "petPulse", "healerIcon", "healerIconSize" }) do
+			"petStyle", "petScale", "petPulse", "healerIcon", "healerIconSize",
+			"castExtraWidth", "borderSize", "levelOffset", "castIconSize", "borderColor",
+			"targetBorderColor", "hoverBorderColor" }) do
 			HemsworkPlatesDB[k] = nil
 		end
 		cfg = HemsworkPlatesDB
@@ -2143,7 +2054,6 @@ function OnEvent(self, event, arg1)
 		if (cfg.dbVersion or 0) < 6 then
 			-- Solo quedan texturas que se distinguen; el cast ya no lleva ancho extra
 			if cfg.texture ~= "Interface\\Buttons\\WHITE8X8" then cfg.texture = defaults.texture end
-			cfg.castExtraWidth = 0
 			cfg.dbVersion = 6
 		end
 		if (cfg.dbVersion or 0) < 7 then

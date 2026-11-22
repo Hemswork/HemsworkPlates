@@ -477,8 +477,12 @@ local function OnUpdate(f, elapsed)
 		Draw(f, w, h, p)
 	end
 	if f.showTimer then
-		local s = rem >= 10 and string.format("%d", rem) or string.format("%.1f", rem)
-		if s ~= f.lastS then f.lastS = s; f.text:SetText(s) end
+		-- primero el numero y solo si cambia se monta el texto (esto va ~30 veces/s)
+		local k = rem >= 10 and -math.floor(rem) or math.floor(rem * 10 + 0.5)
+		if k ~= f.lastS then
+			f.lastS = k
+			f.text:SetText(k < 0 and tostring(-k) or string.format("%.1f", k / 10))
+		end
 	end
 end
 
