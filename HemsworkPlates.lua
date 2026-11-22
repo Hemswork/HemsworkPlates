@@ -11,6 +11,7 @@ local function T(s) return SP.T and SP.T(s) or s end
 
 local defaults = {
 	language = "auto", -- "auto" (segun el cliente), "es" o "en"
+	setupDone = false, -- false = sale el asistente al entrar
 	shape = "classic", -- "classic" o "old" (el marco dorado de siempre)
 	width = 120, height = 11, castHeight = 14, castY = 0, castWidth = 0, scale = 1,
 	pixelPerfect = true,
@@ -42,6 +43,8 @@ local defaults = {
 	healerEnemy = true, healerEnemySize = 18, healerEnemyX = 0, healerEnemyY = 0,
 	healerParty = true, healerPartySize = 18, healerPartyX = 0, healerPartyY = 0,
 	nameX = 0, nameY = 0, -- mover el nombre (0,0 = centrado)
+	-- aliados de tu grupo sin barra: icono de clase encima y nombre grande
+	allyMarker = false, allyMarkerSize = 22, allyNameSize = 14,
 	stacking = false, stackGap = 2, stackSpeed = 12, stackMax = 80,
 
 	classColorPlayers = true,
@@ -847,6 +850,17 @@ local function Restyle(plate)
 	cls:Hide()
 	sp.clsClass = nil
 
+	-- marca del aliado sin barra: encima del nombre
+	local am = sp.ally
+	local as = SnapSize(cfg.allyMarkerSize or 22, px)
+	am:SetWidth(as)
+	am:SetHeight(as)
+	am:ClearAllPoints()
+	am:SetPoint("BOTTOM", sp.name, "TOP", 0, Snap(2, px))
+	SP.StyleIconBorder(am, am.icon, am.edge, as, px)
+	am:Hide()
+	sp.allyFont = nil
+
 	-- numero de arena/grupo a la izquierda (y del icono de clase si hay)
 	SetFontSafe(sp.idText, cfg.font, fs + 4, "OUTLINE")
 	sp.idText:ClearAllPoints()
@@ -881,6 +895,7 @@ function SP.ApplyMode(sp, mode)
 		sp.idText:Hide()
 		Toggle(sp.name, mode == "barless")
 	end
+	if mode ~= "barless" then sp.ally:Hide() end
 	Toggle(sp.totem, mode == "totem" or (sp.totemBeside and mode ~= "hidden"))
 end
 
@@ -954,6 +969,16 @@ local function Build(plate)
 	sp.heal:SetTexture(ROLE_ICONS)
 	sp.heal:SetTexCoord(20 / 64, 39 / 64, 1 / 64, 20 / 64)
 	sp.heal:Hide()
+
+	-- icono de clase encima de los aliados sin barra
+	sp.ally = CreateFrame("Frame", nil, sp)
+	sp.ally:SetFrameLevel(sp:GetFrameLevel() + 9)
+	sp.ally.edge = sp.ally:CreateTexture(nil, "BACKGROUND")
+	sp.ally.edge:SetTexture(0, 0, 0, 1)
+	sp.ally.icon = sp.ally:CreateTexture(nil, "ARTWORK")
+	sp.ally.icon:SetAllPoints(sp.ally)
+	sp.ally.icon:SetTexture(CLASS_ICONS)
+	sp.ally:Hide()
 
 	-- Icono de clase (jugadores)
 	sp.cls = CreateFrame("Frame", nil, sp)
@@ -1298,6 +1323,32 @@ local function IsHealerSpell(spellName)
 	return spellName and healerSpells[spellName]
 end
 
+-- aliado de tu grupo sin barra: nombre grande con contorno grueso y el icono
+-- de su clase encima, para verlo de lejos
+local function UpdateAllyMarker(sp, class, on)
+	local tc = on and class and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]
+	if tc then
+		if not sp.allyFont then
+			sp.allyFont = true
+			SetFontSafe(sp.name, cfg.font, cfg.allyNameSize or 14, "THICKOUTLINE")
+			local t = sp.name:GetText()
+			sp.name:SetText("")
+			sp.name:SetText(t)
+		end
+		sp.ally.icon:SetTexCoord(tc[1] + 0.015, tc[2] - 0.015, tc[3] + 0.015, tc[4] - 0.015)
+		sp.ally:Show()
+	elseif sp.allyFont or sp.ally:IsShown() then
+		if sp.allyFont then
+			sp.allyFont = nil
+			SetFontSafe(sp.name, cfg.font, cfg.fontSize, cfg.fontOutline)
+			local t = sp.name:GetText()
+			sp.name:SetText("")
+			sp.name:SetText(t)
+		end
+		sp.ally:Hide()
+	end
+end
+
 -- si esta Gladius aprovecho su deteccion de spec: me engancho a
 -- Gladius:DetectSpec, que recibe "arenaN" y el nombre de la spec
 -- ya traducido
@@ -1324,12 +1375,14 @@ SP.HookGladius = HookGladius
 
 -- cruz verde a la izquierda del nombre (o del numero de arena);
 -- si no hay nombre visible, a la izquierda de la barra
-local function UpdateHealerIcon(sp, unit, isPlayer, mode, friendly)
+local function UpdateHealerIcon(sp, unit, isPlayer, mode, friendly, force)
 	local h = sp.heal
 	-- healerEnemy* o healerParty* segun el bando
 	local k = friendly and "healerParty" or "healerEnemy"
-	local on = cfg[k] and isPlayer and unit and (mode == "normal" or mode == "barless")
-		and healers[UnitGUID(unit) or ""]
+	-- force: la vista previa del panel o el modo prueba (/hms test)
+	force = force or (sp.testUntil and GetTime() < sp.testUntil)
+	local on = cfg[k] and (mode == "normal" or mode == "barless")
+		and (force or (isPlayer and unit and healers[UnitGUID(unit) or ""]))
 	if not on then
 		if sp.healPos then h:Hide(); sp.healPos = nil end
 		return
@@ -1430,7 +1483,10 @@ function UpdatePlate(plate)
 		local c = isPlayer and cfg.classColors[class or ""]
 		c = c or cfg.friendlyColor
 		sp.name:SetTextColor(c[1], c[2], c[3])
+		UpdateAllyMarker(sp, class, cfg.allyMarker and isPlayer and friendly and unit
+			and (UnitInParty(unit) or UnitInRaid(unit)))
 	else
+		UpdateAllyMarker(sp, nil, false)
 		if sp.idStr ~= id then
 			sp.idStr = id
 			if id and not idAsName then
@@ -1574,6 +1630,17 @@ function UpdateCast(plate)
 	if not spell then
 		spell, _, _, icon, st, et, _, a8, a9 = UnitChannelInfo(unit)
 		channel = spell ~= nil
+	end
+	-- /hms test: un Polymorph que se repite cada 2 s mientras dura la prueba
+	if not spell and sp.testUntil then
+		local now = GetTime()
+		if now < sp.testUntil then
+			local s0 = sp.testStart + math.floor((now - sp.testStart) / 2) * 2
+			spell, _, icon = GetSpellInfo(118)
+			st, et = s0 * 1000, (s0 + 2) * 1000
+		else
+			sp.testUntil = nil
+		end
 	end
 	local pct, left
 	if spell and st and et and et > st then
@@ -1827,6 +1894,23 @@ local function PlateForUnit(unit)
 	return plate and active[plate] and plate
 end
 
+-- /hms test: 8 s de cast, debuff, GCD y cruz de healer en la placa de tu target
+function SP.TestTarget()
+	local plate = UnitExists("target") and PlateForUnit("target")
+	if not plate then
+		print(T("|cff66ccffHemsworkPlates:|r selecciona a alguien con la placa visible y vuelve a probar."))
+		return
+	end
+	local sp, now = plate.sp, GetTime()
+	sp.testStart, sp.testUntil = now, now + 8
+	sp.casting = true
+	if SP.TestDebuff then SP.TestDebuff(UnitGUID("target"), 8) end
+	if SP.TestGCD then SP.TestGCD() end
+	sp.auraDirty = true
+	dirty[plate] = true
+	print(T("|cff66ccffHemsworkPlates:|r prueba de 8 s en tu target: cast, debuff, GCD y cruz de healer."))
+end
+
 local function MarkAll()
 	for plate, sp in pairs(active) do
 		dirty[plate] = true
@@ -1905,6 +1989,192 @@ local function Scan()
 	for plate in pairs(knownPlates) do
 		if plate:IsShown() and not active[plate] then SafeCall(OnPlateShow, plate) end
 	end
+end
+
+-- placas de ejemplo para las tarjetas de perfil: se construyen como una de
+-- verdad pero se pintan con los ajustes de ESE perfil (plate.pcfg), no los tuyos.
+-- Un rival rogue al 62% casteando y un aliado priest (healer de tu grupo)
+local PREVIEW_CLASS = { enemy = "ROGUE", ally = "PRIEST" }
+
+-- ejecuta fn con la config del perfil y luego deja la tuya
+local function WithCfg(c, fn, a)
+	local mine, mineSP = cfg, SP.cfg
+	cfg, SP.cfg = c, c
+	local ok, err = pcall(fn, a)
+	cfg, SP.cfg = mine, mineSP
+	if not ok and not reported[err] then
+		reported[err] = true
+		DEFAULT_CHAT_FRAME:AddMessage("|cffff5555HemsworkPlates error:|r " .. tostring(err))
+	end
+end
+
+local function PreviewClassIcon(sp, class)
+	local tc = cfg.classIcon and CLASS_ICON_TCOORDS and CLASS_ICON_TCOORDS[class]
+	if tc then
+		sp.cls.icon:SetTexCoord(tc[1] + 0.015, tc[2] - 0.015, tc[3] + 0.015, tc[4] - 0.015)
+		sp.cls:Show()
+	else
+		sp.cls:Hide()
+	end
+end
+
+-- el numero de arena: en lugar del nombre o a la izquierda de la barra
+local function PreviewID(sp, show, r, g, b, name)
+	local idAsName = show and cfg.arenaIDPos == "name"
+	SetName(sp, idAsName and "1" or name)
+	if idAsName then sp.name:SetTextColor(r, g, b) else sp.name:SetTextColor(unpack(cfg.textColor)) end
+	if show and not idAsName then
+		sp.idText:SetText("1")
+		sp.idText:SetTextColor(r, g, b)
+		sp.idText:Show()
+	else
+		sp.idText:Hide()
+	end
+	sp.level:SetText("80")
+	if DiffColor then local d = DiffColor(80); sp.level:SetTextColor(d.r, d.g, d.b) end
+	sp.boss:Hide()
+end
+
+local function PaintEnemy(sp)
+	local class, now = PREVIEW_CLASS.enemy, GetTime()
+	local c = cfg.classColorPlayers and cfg.classColors[class] or cfg.hostileColor
+	ColorPill(sp.fillp, c[1], c[2], c[3], 1)
+	SetFill(sp.fillp, sp.fw, 0.62)
+	if cfg.healthTrail then
+		ColorPill(sp.trail, c[1] + (1 - c[1]) * 0.6, c[2] + (1 - c[2]) * 0.6, c[3] + (1 - c[3]) * 0.6, 0.9)
+		SetFill(sp.trail, sp.fw, 0.78)
+	else
+		sp.trail.f:Hide()
+	end
+	if cfg.showHealthText then sp.hp:SetText(HealthString(62, 100)) end
+	PreviewID(sp, cfg.arenaIDs, 1, 0.3, 0.3, T("Enemigo"))
+	PreviewClassIcon(sp, class)
+	sp.healPos = nil
+	UpdateHealerIcon(sp, nil, true, "normal", false, true)
+
+	local cb = sp.cast
+	if cfg.showCast then
+		local spell, _, icon = GetSpellInfo(118)
+		local cc = cfg.castColor
+		ColorPill(cb.fillp, cc[1], cc[2], cc[3], 1)
+		SetFill(cb.fillp, cb.fw, 0.55)
+		cb.border:Show()
+		cb.shield:Hide()
+		cb.text:SetText(spell)
+		Toggle(cb.text, cfg.showCastText)
+		cb.time:SetText("0.7")
+		Toggle(cb.time, cfg.showCastTime)
+		cb.icon:SetDesaturated(false)
+		if cfg.showCastIcon then
+			cb.icon:SetTexture(icon)
+			cb.icon:Show(); cb.iconEdge:Show()
+			if cb.ico.silver and cb.ico.silverOn then cb.ico.silver:Show() end
+		else
+			cb.icon:Hide(); cb.iconEdge:Hide()
+			if cb.ico.silver then cb.ico.silver:Hide() end
+		end
+		if cfg.castSpark then
+			cb.spark:ClearAllPoints()
+			cb.spark:SetPoint("CENTER", cb, "LEFT", cb.fw * 0.55, 0)
+			cb.spark:Show()
+		else
+			cb.spark:Hide()
+		end
+		cb:SetAlpha(1)
+		cb:Show()
+	else
+		cb:Hide()
+	end
+	cb.lastSpell, cb.lastIcon, cb.lastT = nil, nil, nil
+
+	-- debuff y GCD de ejemplo (el debuff se recarga en cada repintado)
+	if sp.simple then
+		if sp.debuff then sp.debuff:Hide() end
+		if sp.gcdFrame then sp.gcdFrame:Hide() end
+		return
+	end
+	local d = sp.debuff
+	if d then
+		if cfg.debuffs then
+			local _, _, icon = GetSpellInfo(118)
+			d.icon:SetTexture(icon)
+			d.tex, d.dur, d.exp = icon, 8, now + 5.3
+			d.lastP, d.lastS = -1, nil
+			d:Show()
+		else
+			d:Hide()
+		end
+	end
+	local gf = sp.gcdFrame
+	if gf then
+		if cfg.gcd then
+			local _, _, icon = GetSpellInfo(1766)
+			gf.icon:SetTexture(icon)
+			gf.sweep:SetTexCoord(1 / 8, 0, 3 / 8, 4 / 8)
+			if cfg.gcdHideSweep then gf.sweep:Hide() else gf.sweep:Show() end
+			gf.text:SetText("0.9")
+			Toggle(gf.text, cfg.gcdTimer)
+			gf.lastFrame, gf.lastText, gf.lastIcon = nil, nil, nil
+			gf:Show()
+		else
+			gf:Hide()
+		end
+	end
+end
+
+local function PaintAlly(sp)
+	local class = PREVIEW_CLASS.ally
+	-- ¿el perfil deja a los aliados sin barra? (en arena, o en BG si es su zona)
+	local z = cfg.previewZone == "bg" and cfg.barlessBG or cfg.barlessArena
+	if z == 2 or z == 3 then
+		if sp.mode ~= "barless" then sp.mode = "barless"; SP.ApplyMode(sp, "barless") end
+		SetName(sp, T("Aliado"))
+		local c = cfg.classColors[class] or cfg.friendlyColor
+		sp.name:SetTextColor(c[1], c[2], c[3])
+		UpdateAllyMarker(sp, class, cfg.allyMarker)
+		sp.healPos = nil
+		UpdateHealerIcon(sp, nil, true, "barless", true, true)
+		return
+	end
+	local c = cfg.friendlyClassColor and cfg.classColors[class] or cfg.friendlyPlayerColor
+	ColorPill(sp.fillp, c[1], c[2], c[3], 1)
+	SetFill(sp.fillp, sp.fw, 0.85)
+	sp.trail.f:Hide()
+	if cfg.showHealthText then sp.hp:SetText(HealthString(85, 100)) end
+	PreviewID(sp, cfg.partyIDs, 0.3, 1, 0.3, T("Aliado"))
+	PreviewClassIcon(sp, class)
+	UpdateAllyMarker(sp, nil, false)
+	sp.healPos = nil
+	UpdateHealerIcon(sp, nil, true, "normal", true, true)
+	sp.cast:Hide()
+	if sp.debuff then sp.debuff:Hide() end
+	if sp.gcdFrame then sp.gcdFrame:Hide() end
+end
+
+local function PaintPreview(plate)
+	local sp = plate.sp
+	if not sp or not plate:IsVisible() then return end
+	if plate.kind == "ally" then PaintAlly(sp) else PaintEnemy(sp) end
+end
+SP.PaintPreview = function(plate) WithCfg(plate.pcfg, PaintPreview, plate) end
+
+-- kind: "enemy" o "ally"; pcfg: la configuracion del perfil que se ensena;
+-- scale: tamano de la miniatura; simple: sin los iconos de debuff y GCD
+function SP.NewPreview(parent, kind, pcfg, scale, simple)
+	local plate = CreateFrame("Frame", nil, parent)
+	plate:SetWidth(1)
+	plate:SetHeight(1)
+	plate:SetScale(scale or 1)
+	plate.kind, plate.pcfg = kind or "enemy", pcfg or cfg
+	Build(plate)
+	built[plate] = nil -- va con su propia config: el Refresh general no la toca
+	local sp = plate.sp
+	sp.mode = "normal"
+	sp.simple = simple
+	sp.scaleMul = plate.kind == "ally" and (plate.pcfg.friendlyScale or 1) or 1
+	WithCfg(plate.pcfg, Restyle, plate)
+	SP.PaintPreview(plate)
+	return plate
 end
 
 function SP.Refresh()
@@ -2023,7 +2293,11 @@ function OnEvent(self, event, arg1)
 		if arg1 ~= addonName then return end
 		HemsworkPlatesDB = HemsworkPlatesDB or {}
 		local hadIconWH = HemsworkPlatesDB.debuffWidth ~= nil
+		-- quien ya usaba el addon no necesita el asistente
+		local fresh = next(HemsworkPlatesDB) == nil
+		local hadSetup = HemsworkPlatesDB.setupDone
 		Merge(HemsworkPlatesDB, defaults)
+		if not fresh and hadSetup == nil then HemsworkPlatesDB.setupDone = true end
 		-- limpiar las opciones del sigilo de la 1.2.0
 		HemsworkPlatesDB.stealthMark, HemsworkPlatesDB.stealthAlert = nil, nil
 		HemsworkPlatesDB.stealthAlertSize, HemsworkPlatesDB.stealthIcons = nil, nil
@@ -2282,6 +2556,10 @@ function SlashHandler(msg)
 		print(T("HemsworkPlates: geometria borrada, se volvera a medir tras /reload."))
 	elseif msg == "perfil" or msg == "perfiles" or msg == "export" or msg == "import" then
 		if SP.ShowProfiles then SP.ShowProfiles() end
+	elseif msg == "setup" or msg == "asistente" then
+		if SP.ShowWizard then SP.ShowWizard() end
+	elseif msg == "test" or msg == "prueba" then
+		SP.TestTarget()
 	elseif msg == "gcd" or msg == "gcd test" then
 		if SP.TestGCD then SP.TestGCD() end
 	elseif msg == "reset" then

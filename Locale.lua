@@ -314,6 +314,99 @@ local EN = {
 		"0 = touching the plate. Positive moves it away, negative moves it over the border.",
 	["Linea brillante en el borde del relleno, como en la barra de Blizzard."] = "Bright line at the edge of the fill, like Blizzard's castbar.",
 
+	-- Inicio, perfiles ya hechos, buscador, vista previa y asistente
+	["Inicio"] = "Home",
+	["Bienvenido"] = "Welcome",
+	["Elige un perfil para empezar y ajusta lo basico aqui. El resto de opciones esta en las secciones de la izquierda, y el buscador de arriba encuentra cualquiera."] =
+		"Pick a profile to start and adjust the basics here. Everything else is in the sections on the left, and the search box above finds any option.",
+	["Perfiles rapidos"] = "Quick profiles",
+	["Lo basico"] = "The basics",
+	["Ayuda"] = "Help",
+	["Blizzard clasico"] = "Classic Blizzard",
+	["Minimalista"] = "Minimalist",
+	["Campos de batalla"] = "Battlegrounds",
+	["Para muchas placas: aliados solo con nombre, placas mas pequenas y menos efectos."] =
+		"For lots of plates: name-only friends, smaller plates and fewer effects.",
+	["Aplicar el perfil \"%s\"? Tus ajustes actuales se reemplazan (puedes exportarlos antes en Perfiles)."] =
+		"Apply the \"%s\" profile? Your current settings will be replaced (you can export them first in Profiles).",
+	["Aplicar"] = "Apply",
+	["Rival"] = "Enemy",
+	["Tu equipo"] = "Your team",
+	["Enemigo"] = "Enemy",
+	["Aliado"] = "Ally",
+	["Cada perfil muestra como se ve un rival y alguien de tu equipo en arena."] =
+		"Each profile shows how an enemy and someone on your team look in arena.",
+	["Arena: aliados con marca"] = "Arena: marked allies",
+	["Rivales con placa completa. Tu equipo sin barra: nombre grande con su color y el icono de su clase encima."] =
+		"Enemies with full plates. Your team without bars: a big class-colored name with their class icon above it.",
+	["Arena: placas en ambos"] = "Arena: plates on both",
+	["Rivales y tu equipo con placa. Los aliados salen en azul y algo mas pequenos."] =
+		"Enemies and your team with plates. Allies are blue and a bit smaller.",
+	["El marco dorado de siempre para todos, mejorado."] = "The usual golden frame for everyone, improved.",
+	["Barras finas para los rivales y solo el nombre para tu equipo."] = "Thin bars for enemies and just the name for your team.",
+	["Perfil de Hemswork"] = "Hemswork's profile",
+	["La configuracion que usa Hemswork, el autor del addon."] = "The setup used by Hemswork, the addon's author.",
+	["Marca sobre tu grupo"] = "Mark your group",
+	["Tus companeros de grupo que salen sin barra llevan el icono de su clase encima y el nombre mas grande, con su color."] =
+		"Group members shown without a bar get their class icon above them and a bigger, class-colored name.",
+	["Tamano del icono de la marca"] = "Marker icon size",
+	["Tamano del nombre"] = "Name size",
+	["Asistente de configuracion"] = "Setup wizard",
+	["Tres pasos: idioma, perfil y tamano. Lo puedes repetir cuando quieras con /hms setup."] =
+		"Three steps: language, profile and size. You can run it again anytime with /hms setup.",
+	["Probar en mi target"] = "Test on my target",
+	["Muestra durante 8 s un cast, un debuff, el GCD y la cruz de healer en la placa de tu target, para ver donde queda todo."] =
+		"Shows a cast, a debuff, the GCD and the healer cross on your target's plate for 8 s, so you can see where everything goes.",
+	["Comandos: /hms abre las opciones, /hms setup el asistente y /hms test prueba los iconos en tu target."] =
+		"Commands: /hms opens the options, /hms setup the wizard and /hms test tries the icons on your target.",
+	["Vista previa"] = "Preview",
+	["Buscar opcion..."] = "Search option...",
+	["%d resultados"] = "%d results",
+	["No hay opciones con ese nombre"] = "No options with that name",
+	["Configuracion rapida"] = "Quick setup",
+	["Paso %d de %d"] = "Step %d of %d",
+	["Elige el idioma"] = "Choose the language",
+	["Elige un perfil para empezar"] = "Choose a profile to start with",
+	["Elige el tamano de las placas"] = "Choose the plate size",
+	["Pequeno"] = "Small",
+	["Mediano"] = "Medium",
+	["Grande"] = "Large",
+	["Atras"] = "Back",
+	["Saltar"] = "Skip",
+	["Siguiente"] = "Next",
+	["Terminar"] = "Finish",
+	["|cff66ccffHemsworkPlates:|r listo. Escribe /hms para cambiar lo que quieras o /hms setup para repetir el asistente."] =
+		"|cff66ccffHemsworkPlates:|r done. Type /hms to change anything or /hms setup to run the wizard again.",
+	["Las opciones de HemsworkPlates estan en su propia ventana."] = "HemsworkPlates options are in their own window.",
+	["Abrir opciones"] = "Open options",
+	["|cff66ccffHemsworkPlates:|r selecciona a alguien con la placa visible y vuelve a probar."] =
+		"|cff66ccffHemsworkPlates:|r target someone whose plate is visible and try again.",
+	["|cff66ccffHemsworkPlates:|r prueba de 8 s en tu target: cast, debuff, GCD y cruz de healer."] =
+		"|cff66ccffHemsworkPlates:|r 8 s test on your target: cast, debuff, GCD and healer cross.",
+
+	-- panel nuevo (secciones, filas y tarjetas)
+	["Arena y grupo"] = "Arena and group",
+	["Iconos"] = "Icons",
+	["Avanzado"] = "Advanced",
+	["Estilo y tamano"] = "Style and size",
+	["Barra y texto"] = "Bar and text",
+	["Comandos"] = "Commands",
+	["Tu configuracion"] = "Your settings",
+	["Mas opciones (%d)"] = "More options (%d)",
+	["Menos opciones"] = "Fewer options",
+	["En uso"] = "In use",
+	["Clic para aplicar"] = "Click to apply",
+	["Pulsa un perfil para aplicarlo. Pasa el raton por encima para ver de que va."] =
+		"Click a profile to apply it. Hover over it to see what it does.",
+	["Copia tu configuracion como texto para pasarla a otro personaje o cuenta, o pega la de otra persona."] =
+		"Copy your settings as text to move them to another character or account, or paste someone else's.",
+	["Categoria %d: %s"] = "Category %d: %s",
+	["Solo nombre en arenas"] = "Name only in arenas",
+	["Solo nombre en campos de batalla"] = "Name only in battlegrounds",
+	["Solo nombre en mundo abierto"] = "Name only in the open world",
+	["Solo nombre en mazmorras y bandas"] = "Name only in dungeons and raids",
+	["Las placas amistosas muestran solo el nombre, sin barra."] = "Friendly plates show only the name, without a bar.",
+
 	-- Mensajes del chat
 	["|cff66ccffHemsworkPlates|r cargado: version %s (Warmane, sin Awesome WotLK)"] =
 		"|cff66ccffHemsworkPlates|r loaded: version %s (Warmane, no Awesome WotLK)",

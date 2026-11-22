@@ -359,6 +359,14 @@ local SILENCE_INDEX
 for i, cat in ipairs(CAT_ORDER) do if cat == "silence" then SILENCE_INDEX = i end end
 
 local lockout = {} -- GUID -> { icon, dur, exp }
+
+-- /hms test: un Polymorph de mentira en el target durante unos segundos
+local testAura = {}
+function SP.TestDebuff(guid, secs)
+	if not guid then return end
+	local _, _, icon = GetSpellInfo(118)
+	testAura[guid] = { icon = icon, dur = secs, exp = GetTime() + secs }
+end
 function SP.AddLockout(guid, spellId)
 	local d = guid and LOCKOUTS[spellId]
 	if not d then return end
@@ -375,6 +383,11 @@ local function Best(unit, cfg)
 	local now = GetTime()
 	local bCi, bPri, bRem, bIcon, bDur, bExp
 	local guid = UnitGUID(unit)
+	local ta = guid and testAura[guid]
+	if ta then
+		if ta.exp > now then return ta.icon, ta.dur, ta.exp end
+		testAura[guid] = nil
+	end
 	local lo = guid and lockout[guid]
 	if lo then
 		if lo.exp <= now then

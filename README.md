@@ -14,6 +14,14 @@ Classic Blizzard look, pixel-perfect bars, castbars for every arena opponent, im
 
 ### Features
 
+**Easy to set up**
+- **Setup wizard** the first time you log in (language, profile and size). Run it again with `/hms setup`.
+- **Quick profiles** with one click, each with a preview of an enemy and an ally: Arena with marked allies, Arena with plates on both, Classic Blizzard, Minimalist, Battlegrounds and **Hemswork's own profile**.
+- **Group marker**: party members shown without a bar get their class icon above them and a bigger, class-colored name.
+- **Simple panel**: six sections with the main options, the rarely used ones folded under "More options", and a **search box** that finds any option.
+- **Test on my target** (`/hms test`): shows a cast, a debuff, the GCD and the healer cross on your target to see where everything goes.
+- Also in **Esc → Interface → AddOns → HemsworkPlates**.
+
 **Look**
 - Two styles: **WotLK Classic** (default) and **Old (Blizzard)** with the original golden frame.
 - **Centered over the head**: the middle of the bar sits right above the character.
@@ -74,6 +82,8 @@ Classic Blizzard look, pixel-perfect bars, castbars for every arena opponent, im
 |---|---|
 | `/hms` | Open the options panel (also `/plates`) |
 | `/hms perfil` | Import / export profiles |
+| `/hms setup` | Run the setup wizard again |
+| `/hms test` | Show a test cast, debuff, GCD and healer cross on your target |
 | `/hms gcd` | Test the arena GCD icon on your target |
 | `/hms reset` | Reset all settings to defaults |
 | `/hms perf` | Show performance stats (`/hms perf reset` to restart) |
@@ -94,6 +104,14 @@ Aspecto clásico de Blizzard, barras pixel-perfect, castbar de todos los rivales
 > Las placas se buscan entre los marcos del propio juego y se emparejan **por nombre** con `arena1-5`, `party1-4`, sus mascotas, `target`, `focus` y `mouseover`. Dentro de la arena esto da información completa de cada rival.
 
 ### Funciones
+
+**Fácil de configurar**
+- **Asistente** la primera vez que entras (idioma, perfil y tamaño). Se repite con `/hms setup`.
+- **Perfiles rápidos** de un clic, cada uno con una vista previa de un rival y un aliado: Arena con aliados marcados, Arena con placas en ambos, Blizzard clásico, Minimalista, Campos de batalla y **el perfil de Hemswork**.
+- **Marca sobre tu grupo**: tus compañeros que salen sin barra llevan el icono de su clase encima y el nombre más grande con su color.
+- **Panel sencillo**: seis secciones con lo importante, lo que casi nadie toca plegado en "Más opciones" y un **buscador** que encuentra cualquier opción.
+- **Probar en mi target** (`/hms test`): muestra un cast, un debuff, el GCD y la cruz de healer en tu target para ver dónde queda todo.
+- También en **Esc → Interfaz → AddOns → HemsworkPlates**.
 
 **Aspecto**
 - Dos estilos: **Clásico WotLK** (por defecto) y **Antiguo (Blizzard)** con el marco dorado original.
@@ -155,6 +173,8 @@ Aspecto clásico de Blizzard, barras pixel-perfect, castbar de todos los rivales
 |---|---|
 | `/hms` | Abre el panel de opciones (también `/plates`) |
 | `/hms perfil` | Importar / exportar perfiles |
+| `/hms setup` | Vuelve a abrir el asistente |
+| `/hms test` | Muestra un cast, debuff, GCD y cruz de healer de prueba en tu target |
 | `/hms gcd` | Prueba el icono de GCD de arena en tu target |
 | `/hms reset` | Restablece toda la configuración |
 | `/hms perf` | Muestra el rendimiento del addon (`/hms perf reset` para reiniciar) |
